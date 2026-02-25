@@ -1,0 +1,125 @@
+.player-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 15px;
+    margin: 10px;
+
+    &.vertical-layout {
+        grid-template-columns: 1fr;
+        gap: 15px;
+
+        .player-card {
+            padding: 12px;
+
+            .leader-badge {
+                top: -12px;
+                right: -8px;
+            }
+        }
+    }
+}
+
+.player-card {
+    background: #161b22;
+    border: 2px solid #30363d;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.player-card:hover {
+    background: #1c2128;
+    border-color: #444c56;
+    transform: translateY(-2px);
+}
+
+.player-card.is-leader {
+    border-color: #d29922;
+}
+
+.player-card.on-mission {
+    box-shadow: 0 0 10px #58a6ff;
+}
+
+.player-card.team-good {
+    border-bottom: 4px solid #58a6ff;
+}
+
+.player-card.team-evil {
+    border-bottom: 4px solid #f85149;
+}
+
+.leader-badge {
+    position: absolute;
+    top: -10px;
+    right: -5px;
+    font-size: 1.4em;
+}
+
+.name {
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.role {
+    font-size: 0.85em;
+    opacity: 0.8;
+}
+
+.model-badge {
+    font-size: 0.65em;
+    color: #8b949e;
+    background: #21262d;
+    border-radius: 3px;
+    padding: 1px 5px;
+    margin-top: 3px;
+    display: inline-block;
+}
+
+.id {
+    font-size: 0.7em;
+    color: #8b949e;
+}
+
+.thinking-badge {
+    font-size: 0.7em;
+    color: #58a6ff;
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    animation: pulse 1.5s infinite;
+}
+
+.spinner {
+    width: 10px;
+    height: 10px;
+    border: 2px solid #58a6ff;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.6;
+    }
+}

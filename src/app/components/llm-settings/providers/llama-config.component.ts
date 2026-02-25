@@ -1,0 +1,60 @@
+import { Component, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { LLM_CONFIG_DATA } from '../../../services/llm/llm-config-portal';
+import { TranslatePipe } from '../../../i18n/translate.pipe';
+
+@Component({
+  selector: 'app-llama-config',
+  standalone: true,
+  imports: [CommonModule, FormsModule, TranslatePipe],
+  template: `
+    <div class="provider-fields">
+      <div class="form-group">
+        <label for="llamaUrl">Llama.cpp URL:</label>
+        <input id="llamaUrl" type="text" [(ngModel)]="config.settings.baseUrl" placeholder="http://localhost:8080">
+      </div>
+      <div class="form-group">
+        <label for="llamaModel">Display Model ID:</label>
+        <input id="llamaModel" type="text" [(ngModel)]="config.settings.modelId" placeholder="Llama-3-8B">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="llamaTemp">{{ 'settings.temperature' | translate }}</label>
+          <input id="llamaTemp" type="number" [(ngModel)]="config.settings.temperature" step="0.1" min="0" max="2">
+        </div>
+        <div class="form-group">
+          <label for="llamaFreq">{{ 'settings.freqPenalty' | translate }}</label>
+          <input id="llamaFreq" type="number" [(ngModel)]="config.settings.frequency_penalty" step="0.1" min="-2" max="2">
+        </div>
+        <div class="form-group">
+          <label for="llamaPres">{{ 'settings.presPenalty' | translate }}</label>
+          <input id="llamaPres" type="number" [(ngModel)]="config.settings.presence_penalty" step="0.1" min="-2" max="2">
+        </div>
+      </div>
+    </div>
+  `,
+  styles: [`
+    .form-row {
+      display: flex;
+      gap: 12px;
+      .form-group { flex: 1; }
+    }
+    .form-group {
+      margin-bottom: 16px;
+      label { display: block; margin-bottom: 6px; color: #8b949e; font-size: 0.9em; }
+      input {
+        width: 100%;
+        padding: 10px;
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        color: white;
+        &:focus { border-color: #58a6ff; outline: none; }
+      }
+    }
+  `]
+})
+export class LlamaConfigComponent {
+  config = inject(LLM_CONFIG_DATA);
+}

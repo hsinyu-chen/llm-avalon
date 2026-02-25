@@ -1,0 +1,84 @@
+<div class="settings-overlay">
+    <div class="settings-container">
+        <div class="settings-header">
+            <h2>{{ 'settings.title' | translate }}</h2>
+            <button class="close-btn" (click)="cancelEdit()">×</button>
+        </div>
+
+        @if (!editingConfig()) {
+        <div class="configs-list">
+            <div class="actions">
+                <button class="primary-btn" (click)="createConfig()">{{ 'settings.newProfile' | translate }}</button>
+            </div>
+
+            <div class="config-grid">
+                @for (config of configs(); track config.id) {
+                <div class="config-card">
+                    <div class="card-info">
+                        <strong>{{ config.name }}</strong>
+                        <span class="provider-tag">{{ config.provider }}</span>
+                    </div>
+                    <div class="card-actions">
+                        <button class="secondary-btn" (click)="editConfig(config)">{{ 'settings.edit' | translate
+                            }}</button>
+                        <button class="danger-btn" (click)="deleteConfig(config.id)">{{ 'settings.delete' | translate
+                            }}</button>
+                    </div>
+                </div>
+                } @empty {
+                <p class="empty-msg">{{ 'settings.noProfiles' | translate }}</p>
+                }
+            </div>
+        </div>
+        } @else {
+        <div class="config-editor">
+            <div class="form-group">
+                <label for="configNameInput">{{ 'settings.configName' | translate }}</label>
+                <input id="configNameInput" type="text" [(ngModel)]="editingConfig()!.name"
+                    [placeholder]="'settings.configNamePlaceholder' | translate">
+            </div>
+
+            <div class="form-group">
+                <label for="providerSelect">{{ 'settings.provider' | translate }}</label>
+                <select id="providerSelect" [ngModel]="editingConfig()!.provider"
+                    (ngModelChange)="onProviderChange($event)">
+                    @for (p of providers; track p.id) {
+                    <option [value]="p.id">{{ p.name }}</option>
+                    }
+                </select>
+            </div>
+
+            <!-- Dynamic Portal for Provider Settings -->
+            <div class="portal-wrapper">
+                @if (configPortal()) {
+                <ng-template [cdkPortalOutlet]="configPortal()"></ng-template>
+                }
+            </div>
+
+            <div class="editor-footer">
+                <div class="test-row">
+                    <button class="secondary-btn" (click)="testConnection()" [disabled]="isTesting()">
+                        {{ isTesting() ? ('settings.testing' | translate) : ('settings.testConnection' | translate) }}
+                    </button>
+                    <span class="status-text" [class.success]="testStatus().includes('✅')"
+                        [class.error]="testStatus().includes('❌')">
+                        {{ testStatus() }}
+                    </span>
+                </div>
+
+                @if (testResponse()) {
+                <div class="test-response-block">
+                    <span class="response-label">{{ 'settings.modelResponse' | translate }}</span>
+                    <div class="response-text">{{ testResponse() }}</div>
+                </div>
+                }
+
+                <div class="final-actions">
+                    <button class="secondary-btn" (click)="cancelEdit()">{{ 'settings.cancel' | translate }}</button>
+                    <button class="primary-btn" (click)="saveConfig()">{{ 'settings.save' | translate }}</button>
+                </div>
+            </div>
+        </div>
+        }
+    </div>
+</div>

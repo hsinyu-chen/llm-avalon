@@ -1,0 +1,130 @@
+<div class="setup-container">
+    <h2>{{ 'setup.title' | translate }}</h2>
+
+    <div class="config-row">
+        <label for="playerCountSelect">{{ 'setup.playerCount' | translate }}:</label>
+        <select id="playerCountSelect" [ngModel]="playerCount()" (ngModelChange)="playerCount.set(+$event)">
+            @for (n of [5,6,7,8,9,10]; track n) {
+            <option [value]="n">{{n}}{{ 'setup.players' | translate }}</option>
+            }
+        </select>
+        <span class="count-hint"> ({{ 'setup.good' | translate }}: {{targetCounts().good}} / {{ 'setup.evil' | translate
+            }}: {{targetCounts().evil}})</span>
+    </div>
+
+    <div class="llm-config-section">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <h3>{{ 'setup.aiSettings' | translate }}</h3>
+        </div>
+        <p class="subtitle">{{ 'setup.aiSubtitle' | translate }}</p>
+
+        <div class="bulk-actions">
+            <label for="bulkProfile">{{ 'setup.bulkApplyLabel' | translate }}</label>
+            <select id="bulkProfile" #bulkSelect>
+                @for (cfg of llmConfigs(); track cfg.id) {
+                <option [value]="cfg.id">{{cfg.name}}</option>
+                }
+            </select>
+            <button class="secondary-btn" (click)="applyBulk(bulkSelect.value)">{{ 'setup.bulkApplyBtn' | translate
+                }}</button>
+        </div>
+
+        <div class="player-agent-grid">
+            @for (p of playerAgents(); track p.id; let i = $index) {
+            <div class="player-agent-row">
+                <input class="name-input" [ngModel]="p.name" (ngModelChange)="updateName(i, $event)" placeholder="Name">
+
+                <select [ngModel]="p.type" (ngModelChange)="updateAgent(i, { type: $event })">
+                    <option value="random">{{ 'setup.random' | translate }}</option>
+                    <option value="llm">{{ 'setup.llm' | translate }}</option>
+                </select>
+
+                @if (p.type === 'llm') {
+                <select [ngModel]="p.configId" (ngModelChange)="updateAgent(i, { configId: $event })">
+                    <option value="">{{ 'setup.chooseConfig' | translate }}</option>
+                    @for (cfg of llmConfigs(); track cfg.id) {
+                    <option [value]="cfg.id">{{cfg.name}}</option>
+                    }
+                </select>
+                }
+            </div>
+            }
+        </div>
+    </div>
+
+    <div class="roles-section">
+        <h3>{{ 'setup.roles' | translate }}</h3>
+        <p class="subtitle">{{ 'setup.rolesSubtitle' | translate }}</p>
+
+        <div class="role-grid">
+            <label class="disabled-label" for="merlinCheck">
+                <input id="merlinCheck" type="checkbox" checked disabled> {{ 'setup.merlin' | translate }}
+            </label>
+            <label class="disabled-label" for="assassinCheck">
+                <input id="assassinCheck" type="checkbox" checked disabled> {{ 'setup.assassin' | translate }}
+            </label>
+
+            <label for="percivalMorganaCheck" class="pair-label">
+                <input id="percivalMorganaCheck" type="checkbox" [ngModel]="usePercivalMorgana()"
+                    (ngModelChange)="usePercivalMorgana.set($event)">
+                {{ 'setup.percivalMorgana' | translate }}
+            </label>
+
+            <label for="mordredCheck">
+                <input id="mordredCheck" type="checkbox" [ngModel]="useMordred()"
+                    (ngModelChange)="useMordred.set($event)">
+                {{ 'setup.mordred' | translate }}
+            </label>
+
+            <label for="oberonCheck">
+                <input id="oberonCheck" type="checkbox" [ngModel]="useOberon()" (ngModelChange)="useOberon.set($event)">
+                {{ 'setup.oberon' | translate }}
+            </label>
+        </div>
+    </div>
+    <!-- not test yet -->
+    <!-- <div class="modules-section">
+        <h3>{{ 'setup.modules' | translate }}</h3>
+        <div class="module-grid">
+            <label for="excaliburCheck">
+                <input id="excaliburCheck" type="checkbox" [ngModel]="enableExcalibur()"
+                    (ngModelChange)="enableExcalibur.set($event)">
+                {{ 'setup.excalibur' | translate }}
+            </label>
+            <label for="ladyCheck">
+                <input id="ladyCheck" type="checkbox" [ngModel]="enableLady()" (ngModelChange)="enableLady.set($event)">
+                {{ 'setup.lady' | translate }}
+            </label>
+        </div>
+    </div> -->
+
+    <div class="summary-section">
+        <h3>{{ 'setup.summary' | translate }}</h3>
+        <div class="summary-grid">
+            <div class="summary-item good">
+                <span class="label">{{ 'setup.goodFaction' | translate }}</span>
+                <span class="value">{{targetCounts().good}} {{ 'setup.players' | translate }}</span>
+                <div class="details">
+                    ({{ 'setup.special' | translate }}: {{specialGoodCount()}}, {{ 'setup.servants' | translate }}:
+                    {{remainingServants()}})
+                </div>
+            </div>
+            <div class="summary-item evil">
+                <span class="label">{{ 'setup.evilFaction' | translate }}</span>
+                <span class="value">{{targetCounts().evil}} {{ 'setup.players' | translate }}</span>
+                <div class="details">
+                    ({{ 'setup.special' | translate }}: {{specialEvilCount()}}, {{ 'setup.minions' | translate }}:
+                    {{remainingMinions()}})
+                </div>
+            </div>
+        </div>
+        @if (remainingMinions() < 0 || remainingServants() < 0) { <p class="error-msg">{{ 'setup.errorLimit' | translate
+            }}</p>
+            }
+    </div>
+
+    <button class="start-btn" [disabled]="(remainingMinions() < 0 || remainingServants() < 0) || !allAgentsConfigured()"
+        (click)="onStart()">
+        {{ 'setup.startGame' | translate }}
+    </button>
+</div>

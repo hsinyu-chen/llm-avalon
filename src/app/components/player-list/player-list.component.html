@@ -1,0 +1,26 @@
+<div class="player-grid" [class.vertical-layout]="layout() === 'vertical'">
+    @for (p of players(); track p.agent.id) {
+    <div class="player-card" role="button" tabindex="0" [ngClass]="{
+           'is-leader': $index === leaderIndex(),
+           'on-mission': proposedIds().includes(p.agent.id),
+           'team-good': ROLE_META[p.role].team === 'GOOD',
+           'team-evil': ROLE_META[p.role].team === 'EVIL'
+         }" (click)="playerClick.emit(p)" (keydown.enter)="playerClick.emit(p)"
+        (keydown.space)="playerClick.emit(p); $event.preventDefault()">
+        @if ($index === leaderIndex()) {
+        <div class="leader-badge">👑</div>
+        }
+        <div class="name">{{p.agent.name}}<span class="id">({{p.agent.id}})</span>
+        </div>
+        <div class="role">{{ 'roles.' + p.role | translate }}</div>
+        <div class="model-badge">{{p.agent.modelName || 'Agent'}}</div>
+
+
+        @if (p.agent.getIsThinking?.()) {
+        <div class="thinking-badge">
+            <span class="spinner"></span> {{ 'playerList.thinking' | translate }}
+        </div>
+        }
+    </div>
+    }
+</div>
