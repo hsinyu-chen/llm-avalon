@@ -1,4 +1,4 @@
-import { Component, inject, output } from '@angular/core';
+import { Component, inject, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LLM_CONFIG_DATA } from '../../../services/llm/llm-config-portal';
@@ -10,9 +10,14 @@ import { TranslatePipe } from '../../../i18n/translate.pipe';
   imports: [CommonModule, FormsModule, TranslatePipe],
   template: `
     <div class="provider-fields">
-      <div class="form-group">
+      <div class="form-group row-with-btn">
         <label for="llamaUrl">Llama.cpp URL:</label>
-        <input id="llamaUrl" type="text" [(ngModel)]="config.settings.baseUrl" placeholder="http://localhost:8080">
+        <div class="input-with-btn">
+          <input id="llamaUrl" type="text" [(ngModel)]="config.settings.baseUrl" placeholder="http://localhost:8080">
+          <button (click)="fetchModel()" [disabled]="!config.settings.baseUrl || isFetching()" class="fetch-btn">
+            {{ isFetching() ? '...' : ( 'common.fetch' | translate ) }}
+          </button>
+        </div>
       </div>
       <div class="form-group">
         <label for="llamaModel">Display Model ID:</label>
@@ -61,6 +66,18 @@ import { TranslatePipe } from '../../../i18n/translate.pipe';
         &:focus { border-color: #58a6ff; outline: none; }
       }
     }
+    .row-with-btn {
+      .input-with-btn {
+        display: flex; gap: 8px;
+        input { flex: 1; }
+        .fetch-btn {
+          padding: 0 16px; background: #238636; color: white; border: none; border-radius: 6px;
+          cursor: pointer; font-size: 0.9em; font-weight: 600; min-width: 80px;
+          &:disabled { opacity: 0.5; cursor: not-allowed; }
+          &:hover:not(:disabled) { background: #2ea043; }
+        }
+      }
+    }
     .form-grid {
       display: grid; gap: 12px; margin-bottom: 16px;
       &.columns-2 { grid-template-columns: 1fr 1fr; }
@@ -80,4 +97,31 @@ import { TranslatePipe } from '../../../i18n/translate.pipe';
 export class LlamaConfigComponent {
   config = inject(LLM_CONFIG_DATA);
   configChanged = output<void>();
+  isFetching = signal(false);
+
+  async fetchModel() {
+    const url = this.config.settings.baseUrl;
+    if (!url) return;
+
+    this.isFetching.set(true);
+    try {
+      const cleanUrl = url.replace(/\/$/, '');
+      const response = await fetch(`${cleanUrl}/props`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.model_alias) {
+          this.config.settings.modelId = data.model_alias;
+          this.configChanged.emit();
+        } else if (data.model_path) {
+          // Fallback to basename of model_path
+          this.config.settings.modelId = data.model_path.split(/[/\\]/).pop() || data.model_path;
+          this.configChanged.emit();
+        }
+      }
+    } catch (e) {
+      console.warn('[LlamaConfig] Fetch failed', e);
+    } finally {
+      this.isFetching.set(false);
+    }
+  }
 }

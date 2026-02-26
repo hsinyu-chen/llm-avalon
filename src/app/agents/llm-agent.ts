@@ -946,8 +946,19 @@ export class LLMAgent implements IAgent {
                         }
 
                         if (chunk.text) {
+                            // DEBUG LOG: See every chunk and its classification
+                            console.log(`[LLMAgent:${this.name}] chunk:`, {
+                                text: chunk.text,
+                                thought: !!chunk.thought,
+                                type: chunk.thought ? 'THOUGHT' : 'CONTENT'
+                            });
+
                             const prevFullText = fullText;
-                            fullText += chunk.text;
+                            // Critical Fix: Do NOT append thought chunks to fullText if they are marked as thoughts.
+                            // fullText is used for JSON parsing, and thoughts will break it.
+                            if (!chunk.thought) {
+                                fullText += chunk.text;
+                            }
 
                             if (onFieldChunk) {
                                 let i = Math.max(lastReportedLength, prevFullText.length);

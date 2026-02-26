@@ -272,5 +272,8 @@ export const en = {
         "James", "Mary", "Robert", "Patricia", "John",
         "Jennifer", "Michael", "Linda", "David", "Elizabeth",
         "William", "Barbara", "Richard", "Susan", "Joseph"
-    ]
+    ],
+    common: {
+        fetch: 'Fetch'
+    }
 };

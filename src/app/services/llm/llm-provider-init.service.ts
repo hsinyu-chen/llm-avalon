@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { LLMProviderRegistryService } from './llm-provider-registry.service';
 import { GeminiService } from './gemini.service';
 import { LlamaService } from './llama.service';
+import { LlamaV2Service } from './llama-v2.service';
 import { OpenAIService } from './openai.service';
 import { LLMManagerService } from './llm-manager.service';
 
@@ -18,12 +19,14 @@ export class LLMProviderInitService {
 
     private gemini = inject(GeminiService);
     private llama = inject(LlamaService);
+    private llamaV2 = inject(LlamaV2Service);
     private openai = inject(OpenAIService);
 
     initialize() {
         // Register available providers
         this.registry.register(this.gemini);
-        this.registry.register(this.llama);
+        // this.registry.register(this.llama); // Keep old file but don't register it
+        this.registry.register(this.llamaV2); // Register new optimized version
         this.registry.register(this.openai);
 
         // Note: UI component wiring (settingsComponent) will be handled 
