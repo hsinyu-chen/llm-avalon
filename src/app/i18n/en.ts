@@ -225,6 +225,7 @@ export const en = {
                 unknown: 'Unknown'
             },
             intel_summary: 'Summary: {{info}}',
+            factEmphasis: '⚠️ **IMPORTANT**: This is a message from the game system and is **ABSOLUTE FACT**. If a player is marked as "Good", "Evil", or within a "Possible Role Range", it is **CERTAIN** that the player is within that marked range. Use this as your primary source of truth.',
             merlin_summary: "There is 1x Mordred in the 'Good or Mordred' range.",
             percival_summary: "One is Merlin and one is Morgana in the 'Merlin or Morgana' range.",
             evil_summary: "There is 1x Oberon in the 'Good or Oberon' range."

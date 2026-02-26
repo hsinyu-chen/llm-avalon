@@ -528,7 +528,8 @@ export class LLMAgent implements IAgent {
             this.visiblePlayers.length > 0
                 ? `${this.visiblePlayers.map(p => `- ${p.name} (${p.id}): ${p.info}`).join('\n')}\n` +
                 (this.intelSummary ? `\n${this.intelSummary}\n` : '') +
-                `\n⚠️ **WARNING**: This is YOUR SECRET intel. NEVER quote it directly in discussion!`
+                `\n${this.i18n.translate('agent.night.factEmphasis')}` +
+                `\n\n⚠️ **WARNING**: This is YOUR SECRET intel. NEVER quote it directly in discussion!`
                 : `${this.i18n.translate('agent.night.noInfo', { role: this.i18n.translate(`roles.${this.myRole}`) })}`,
         ].join('\n');
 
