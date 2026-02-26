@@ -18,36 +18,12 @@
                 </div>
 
                 <!-- Scoreboard -->
-                <div class="scoreboard">
-                    @for (m of missionTrack(); track $index) {
-                    <div class="mission-circle" [ngClass]="{
-                   'success': m === 'SUCCESS',
-                   'fail': m === 'FAIL',
-                   'current': currentRound() === $index + 1
-                 }">
-                        R{{$index + 1}}
-                    </div>
-                    }
-                </div>
+                <app-scoreboard [missions]="state().missions" [currentRound]="currentRound()"></app-scoreboard>
 
-                <div class="status-panel">
-                    <div class="status-item">
-                        <span class="label">{{ 'board.round' | translate : {round: ''} }}</span>
-                        <span class="value">{{ state().currentRound }} / 5</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">{{ 'board.failedVotes' | translate }}</span>
-                        <span class="value">{{state().consecutiveFailedVotes}} / 5</span>
-                    </div>
-                    <div class="status-item current-phase full-width">
-                        <span class="label">{{ 'board.currentPhase' | translate }}</span>
-                        <span class="value">{{state().phase}}</span>
-                    </div>
-                    <div class="status-item token-stats full-width"
-                        [title]="'Input: ' + totalTokenUsage().promptTokens + ' | Cached: ' + totalTokenUsage().cachedTokens + ' | Output: ' + totalTokenUsage().completionTokens">
-                        💰 ${{ totalTokenUsage().totalCost | number:'1.4-6' }}
-                    </div>
-                </div>
+                <!-- Status Panel -->
+                <app-status-panel [round]="state().currentRound" [failedVotes]="state().consecutiveFailedVotes"
+                    [phase]="state().phase" [tokenUsage]="totalTokenUsage()">
+                </app-status-panel>
 
                 @if (state().phase === 'DISCUSSION' || state().phase === 'MISSION_DEBRIEF') {
                 <div class="action-panel">
@@ -67,40 +43,14 @@
             </div>
 
             <div class="timeline-container">
-                @if (state().winner) {
-                <div class="winner-banner" [ngClass]="state().winner === 'GOOD' ? 'team-good' : 'team-evil'">
-                    {{ state().winner === 'GOOD' ? ('board.sysGoodWins' | translate) : ('board.sysEvilWins' | translate)
-                    }}
-                </div>
-                }
 
-                @if (state().error) {
-                <div class="error-banner">
-                    <span class="error-message">{{ 'board.errorBanner' | translate : {error: state().error || 'Unknown
-                        Error'}
-                        }}</span>
-                    <button class="primary-btn resume-btn" (click)="resumeGame()">{{ 'board.resumeBtn' | translate
-                        }}</button>
-                </div>
-                }
-
-                <app-game-timeline [events]="events()" [playerRoles]="playerRoleMap()"></app-game-timeline>
+                <app-game-timeline [events]="events()" [playerRoles]="playerRoleMap()"
+                    [perspectiveId]="selectedPlayer()?.agent?.id || null" [isGodView]="!selectedPlayer()">
+                </app-game-timeline>
             </div>
         </div>
 
 
-        @if (state().winner && showModal()) {
-        <div class="game-over-overlay">
-            <div class="winner-modal">
-                <h2>{{ state().winner === 'GOOD' ? ('board.sysGoodWins' | translate) : ('board.sysEvilWins' | translate)
-                    }}</h2>
-                <div class="modal-actions">
-                    <button class="secondary-btn" (click)="showModal.set(false)">Review</button>
-                    <button class="primary-btn" (click)="reset()">Reset</button>
-                </div>
-            </div>
-        </div>
-        }
 
         @if (state().winner) {
         <div class="final-actions">
@@ -152,6 +102,32 @@
                     </div>
                     <div class="token-row total"><span>Total Cost:</span> <span>${{p.agent.getTokenUsage()!.totalCost |
                             number:'1.4-6'}}</span></div>
+                </div>
+            </div>
+            }
+
+            @if (p.agent.getLastAssessment && p.agent.getLastAssessment()) {
+            <div class="info-section">
+                <div class="section-label">🧠 Situation Assessment</div>
+                <div class="section-value assessment-text">
+                    @if (p.agent.getLastAssessment()) {
+                    {{p.agent.getLastAssessment()}}
+                    } @else {
+                    <span class="spinner mini"></span>
+                    }
+                </div>
+            </div>
+            }
+
+            @if (p.agent.getLastStrategy && p.agent.getLastStrategy()) {
+            <div class="info-section">
+                <div class="section-label">🎯 Action Strategy</div>
+                <div class="section-value strategy-text">
+                    @if (p.agent.getLastStrategy()) {
+                    {{p.agent.getLastStrategy()}}
+                    } @else {
+                    <span class="spinner mini"></span>
+                    }
                 </div>
             </div>
             }

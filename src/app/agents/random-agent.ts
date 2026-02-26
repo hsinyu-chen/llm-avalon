@@ -1,4 +1,4 @@
-import { IAgent, NightPhaseInfo, TeamProposalContext, AssassinContext, SpeechAct, ExcaliburContext, NoteContext, ProposeTeamAction, VoteAction, MissionAction, AssassinateAction } from '../models/agent.interface';
+import { IAgent, NightPhaseInfo, TeamProposalContext, AssassinContext, SpeechAct, ExcaliburContext, NoteContext, ProposeTeamAction, VoteAction, MissionAction, AssassinateAction, HiddenSignal, SignalType } from '../models/agent.interface';
 
 export class RandomAgent implements IAgent {
     readonly modelName = 'Random';
@@ -6,8 +6,8 @@ export class RandomAgent implements IAgent {
     private nightInfo = 'No night info';
 
     constructor(public readonly id: string, public readonly name: string) { }
-    async shareGameReflection(): Promise<{ reflection: string; promptText?: string }> {
-        return { reflection: "..." };
+    async shareGameReflection(): Promise<{ reflection: string; self_check?: string; reasoning?: string; situation_assessment?: string; action_strategy?: string; promptText?: string }> {
+        return { reflection: "...", situation_assessment: "...", action_strategy: "..." };
     }
     getPersonalNote(): string {
         return this.note;
@@ -16,6 +16,8 @@ export class RandomAgent implements IAgent {
     getNightInfo(): string {
         return this.nightInfo;
     }
+    getLastAssessment(): string { return 'Random assessment'; }
+    getLastStrategy(): string { return 'Random strategy'; }
 
     async onNightPhase(info: NightPhaseInfo): Promise<void> {
         this.nightInfo = info.visiblePlayers.length > 0
@@ -24,69 +26,96 @@ export class RandomAgent implements IAgent {
         console.log(`[Agent:${this.name}] Role: ${info.myRole}. Visible:`, info.visiblePlayers);
     }
 
-    async proposeTeam(context: TeamProposalContext): Promise<ProposeTeamAction> {
+    async proposeTeam(context: TeamProposalContext, onChunk?: any): Promise<ProposeTeamAction> {
         const shuffled = [...context.playerIds].sort(() => Math.random() - 0.5);
         return {
             self_check: 'Thinking...',
             reasoning: 'Randomly choosing players.',
+            situation_assessment: 'Random assessment.',
+            action_strategy: 'Random strategy.',
             action: {
                 teamMemberIds: shuffled.slice(0, context.teamSize)
             }
         };
     }
 
-    async vote(): Promise<VoteAction> {
+    async vote(context: any, onChunk?: any): Promise<VoteAction> {
         // 60% chance to approve to keep the game moving
         const approve = Math.random() > 0.4;
         return {
             self_check: 'Thinking...',
             reasoning: 'Random choice.',
+            situation_assessment: 'Random assessment.',
+            action_strategy: 'Random strategy.',
             action: {
                 voteChoice: approve
             }
         };
     }
 
-    async executeMission(): Promise<MissionAction> {
+    async executeMission(context: any, onChunk?: any): Promise<MissionAction> {
         // Simple logic: 30% fail rate (random evil behavior simulation)
         return {
             self_check: 'Thinking...',
             reasoning: 'Random choice.',
+            situation_assessment: 'Random assessment.',
+            action_strategy: 'Random strategy.',
             action: {
                 playedMissionResult: Math.random() > 0.3
             }
         };
     }
 
-    async assassinate(context: AssassinContext): Promise<AssassinateAction> {
+    async assassinate(context: AssassinContext, onChunk?: any): Promise<AssassinateAction> {
         const target = context.goodPlayerIds[Math.floor(Math.random() * context.goodPlayerIds.length)];
         return {
             self_check: 'Thinking...',
             reasoning: 'Random choice.',
+            situation_assessment: 'Random assessment.',
+            action_strategy: 'Random strategy.',
             action: {
                 targetId: target
             }
         };
     }
 
-    async speak(): Promise<SpeechAct> {
+    async speak(context: any, onChunk?: (chunk: string, field: 'speech' | 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<SpeechAct> {
         // 20% chance to pass
         if (Math.random() < 0.2) {
             return {
                 self_check: '',
                 reasoning: '',
+                situation_assessment: '',
+                action_strategy: '',
                 action: {
                     speech: '',
-                    readyToVote: true
+                    readyToVote: true,
+                    pass_hidden_signal: { target: 'none', signal: SignalType.None }
                 }
             };
         }
+
+        const signalRoll = Math.random();
+        let hiddenSignal: HiddenSignal = { target: 'none', signal: SignalType.None };
+        if (signalRoll < 0.3) {
+            const players = Object.keys(context.playerNames || {}).filter(id => id !== this.id);
+            if (players.length > 0) {
+                hiddenSignal = {
+                    target: players[Math.floor(Math.random() * players.length)],
+                    signal: Math.random() > 0.5 ? SignalType.Wink : SignalType.Frown
+                };
+            }
+        }
+
         return {
             self_check: `I am ${this.name}`,
             reasoning: 'Randomly chatting',
+            situation_assessment: 'Random assessment.',
+            action_strategy: 'Random strategy.',
             action: {
-                speech: `我是 ${this.name}，我覺得... (Random chatter)`,
-                readyToVote: false
+                speech: `I'm ${this.name}, just testing the system without any logic`,
+                readyToVote: false,
+                pass_hidden_signal: hiddenSignal
             }
         };
     }

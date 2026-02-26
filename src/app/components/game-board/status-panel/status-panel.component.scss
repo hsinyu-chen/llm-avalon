@@ -1,0 +1,59 @@
+.status-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    background: #161b22;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    border: 1px solid #30363d;
+
+    .status-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        font-size: 0.85em;
+
+        &.full-width {
+            grid-column: span 2;
+        }
+
+        .label {
+            color: #8b949e;
+            font-size: 0.8em;
+            text-transform: uppercase;
+        }
+
+        .value {
+            color: #c9d1d9;
+            font-weight: bold;
+        }
+    }
+}
+
+.current-phase {
+    .value {
+        color: #d29922;
+    }
+}
+
+.token-stats {
+    color: #61bb61;
+    font-weight: bold;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-top: 1px solid #30363d;
+    padding-top: 8px;
+    margin-top: 4px;
+
+    .token-main {
+        font-size: 1.1em;
+    }
+
+    .token-details {
+        font-size: 0.75em;
+        color: #8b949e;
+        font-weight: normal;
+    }
+}

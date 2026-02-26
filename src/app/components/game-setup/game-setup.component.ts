@@ -1,9 +1,12 @@
 import { Component, inject, signal, linkedSignal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { CommonModule, DecimalPipe } from '@angular/common';
 import { GameEngineService } from '../../services/game-engine.service';
 import { LLMManagerService } from '../../services/llm/llm-manager.service';
 import { I18nService } from '../../i18n/i18n.service';
 import { TranslatePipe } from '../../i18n/translate.pipe';
+import { PredictionService } from '../../services/prediction.service';
 import { Role } from '../../models/role';
+import { LLMPricingRates } from '../../services/llm/llm-provider';
 import { RandomAgent } from '../../agents/random-agent';
 import { LLMAgent } from '../../agents/llm-agent';
 import { FormsModule } from '@angular/forms';
@@ -20,7 +23,7 @@ import { TRANSLATIONS } from '../../i18n/translations';
 @Component({
     selector: 'app-game-setup',
     standalone: true,
-    imports: [FormsModule, TranslatePipe],
+    imports: [FormsModule, TranslatePipe, DecimalPipe],
     templateUrl: './game-setup.component.html',
     styleUrl: './game-setup.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -29,9 +32,18 @@ export class GameSetupComponent {
     private engine = inject(GameEngineService);
     private llmManager = inject(LLMManagerService);
     public i18n = inject(I18nService);
+    private prediction = inject(PredictionService);
 
     playerCount = signal(7);
     llmConfigs = this.llmManager.configs;
+
+    getAgentCostEstimate(configId: string) {
+        if (!configId) return null;
+        const config = this.llmConfigs().find(c => c.id === configId);
+        if (!config) return null;
+
+        return this.prediction.getCostFromConfig(config);
+    }
 
     playerAgents = linkedSignal<number, PlayerAgentConfig[]>({
         source: this.playerCount,
@@ -114,6 +126,19 @@ export class GameSetupComponent {
 
     remainingServants = computed(() => this.targetCounts().good - this.specialGoodCount());
     remainingMinions = computed(() => this.targetCounts().evil - this.specialEvilCount());
+
+    totalEstimatedCost = computed(() => {
+        let total = 0;
+        for (const pa of this.playerAgents()) {
+            if (pa.type === 'llm' && pa.configId) {
+                const est = this.getAgentCostEstimate(pa.configId);
+                if (est) {
+                    total += est;
+                }
+            }
+        }
+        return total;
+    });
 
     async onStart() {
         const roles: Role[] = [Role.Merlin, Role.Assassin];

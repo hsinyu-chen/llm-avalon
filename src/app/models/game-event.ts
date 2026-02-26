@@ -15,14 +15,23 @@ export enum GamePhase {
     GameOver = 'GAME_OVER',
 }
 
-// --- Event Types for Timeline ---
+export interface BaseGameEvent {
+    status?: 'pending' | 'success' | 'error';
+    error?: string;
+    isThinking?: boolean;
+    promptText?: string;
+    retryLogs?: string[];
+    privateNotes?: Record<string, string>; // PlayerID -> Note content
+}
+
 export type GameEvent =
-    | { type: 'ROUND_START'; round: number }
-    | { type: 'PHASE_CHANGE'; phase: GamePhase; round: number }
-    | { type: 'DISCUSSION'; round: number; playerId: string; playerName: string; message: string; timestamp: number; self_check?: string; reasoning?: string; isThinking?: boolean; promptText?: string }
-    | { type: 'TEAM_PROPOSAL'; round: number; leaderId: string; leaderName: string; teamIds: string[]; teamNames: string[]; reasoning?: string; isThinking?: boolean; promptText?: string }
-    | { type: 'VOTE_RESULTS'; round: number; votes: { name: string; approve: boolean; reasoning?: string; promptText?: string }[]; passed: boolean; failCount: number; promptText?: string }
-    | { type: 'MISSION_OUTCOME'; round: number; teamNames: string[]; teamMembers?: { name: string; role: string; team: Team }[]; failsCount: number; succeeded: boolean; reasonings?: { name: string; reasoning: string; promptText?: string }[]; promptText?: string }
-    | { type: 'SYSTEM'; message: string; icon?: string; round?: number; promptText?: string } // e.g., Excalibur used
-    | { type: 'GAME_OVER'; winner: Team; reason: string; promptText?: string }
-    | { type: 'GAME_DEBRIEF'; playerId: string; playerName: string; message: string; timestamp: number; isThinking?: boolean; promptText?: string };
+    | (BaseGameEvent & { type: 'ROUND_START'; round: number })
+    | (BaseGameEvent & { type: 'PHASE_CHANGE'; phase: GamePhase; round: number; failedVotes?: number })
+    | (BaseGameEvent & { type: 'DISCUSSION'; round: number; failedVotes?: number; discussionRound?: number; phase?: string; playerId: string; playerName: string; message: string; timestamp: number; self_check?: string; reasoning?: string; situation_assessment?: string; action_strategy?: string; hiddenSignalTargetId?: string })
+    | (BaseGameEvent & { type: 'TEAM_PROPOSAL'; round: number; failedVotes?: number; leaderId: string; leaderName: string; teamIds: string[]; teamNames: string[]; reasoning?: string; self_check?: string; situation_assessment?: string; action_strategy?: string })
+    | (BaseGameEvent & { type: 'VOTE_RESULTS'; round: number; failedVotes?: number; votes: { name: string; approve: boolean; reasoning?: string; situation_assessment?: string; action_strategy?: string; promptText?: string; retryLogs?: string[] }[]; passed: boolean; failCount: number; teamNames?: string[] })
+    | (BaseGameEvent & { type: 'MISSION_OUTCOME'; round: number; teamNames: string[]; teamMembers?: { name: string; role: string; team: Team }[]; failsCount: number; succeeded: boolean; reasonings?: { name: string; reasoning: string; situation_assessment?: string; action_strategy?: string; promptText?: string; retryLogs?: string[] }[] })
+    | (BaseGameEvent & { type: 'SYSTEM'; message: string; subType?: string; icon?: string; round?: number; failedVotes?: number; discussionRound?: number; phase?: string; attempt?: number })
+    | (BaseGameEvent & { type: 'ASSASSINATION'; round: number; playerId: string; playerName: string; message: string; icon?: string; targetId: string; targetName: string; self_check?: string; reasoning?: string; situation_assessment?: string; action_strategy?: string; hiddenSignalTargetId?: string })
+    | (BaseGameEvent & { type: 'GAME_OVER'; winner: Team; reason: string })
+    | (BaseGameEvent & { type: 'GAME_DEBRIEF'; round: number; playerId: string; playerName: string; message: string; timestamp: number; self_check?: string; reasoning?: string; situation_assessment?: string; action_strategy?: string; discussionRound?: number });

@@ -1,16 +1,17 @@
-import { Component, inject, signal, output, computed, Injector, Type } from '@angular/core';
+import { Component, inject, signal, output, computed, Injector, Type, ComponentRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PortalModule, ComponentPortal } from '@angular/cdk/portal';
 import { LLMManagerService } from '../../services/llm/llm-manager.service';
 import { LLMStorageService } from '../../services/llm/llm-storage.service';
-import { LLMConfig } from '../../services/llm/llm-provider';
+import { LLMConfig, LLMPricingRates } from '../../services/llm/llm-provider';
 import { LLM_CONFIG_DATA } from '../../services/llm/llm-config-portal';
 import { GeminiConfigComponent } from './providers/gemini-config.component';
 import { OpenAIConfigComponent } from './providers/openai-config.component';
 import { LlamaConfigComponent } from './providers/llama-config.component';
 import { I18nService } from '../../i18n/i18n.service';
 import { TranslatePipe } from '../../i18n/translate.pipe';
+import { PredictionService } from '../../services/prediction.service';
 
 @Component({
     selector: 'app-llm-settings',
@@ -26,6 +27,7 @@ export class LLMSettingsComponent {
     private storage = inject(LLMStorageService);
     private injector = inject(Injector);
     public i18n = inject(I18nService);
+    public prediction = inject(PredictionService);
 
     // Available Providers
     providers = [
@@ -63,6 +65,22 @@ export class LLMSettingsComponent {
         return new ComponentPortal(component, null, portalInjector);
     });
 
+    costInfo = computed(() => {
+        const config = this.editingConfig();
+        if (!config) return null;
+
+        const rates = this.prediction.getPricingRates(config);
+        if (!rates) return null;
+
+        const total = this.prediction.getAgentCostEstimate(rates);
+
+        return {
+            rates,
+            min: total * 0.5,
+            max: total * 2
+        };
+    });
+
     onProviderChange(newProvider: string) {
         const current = this.editingConfig();
         if (current) {
@@ -77,14 +95,15 @@ export class LLMSettingsComponent {
 
             // Specifically for Gemini, set default thinking levels
             if (newProvider === 'gemini') {
-                newSettings.thinkingLevelGeneral = 'high';
-                newSettings.thinkingLevelStory = 'minimal';
+                newSettings.thinkingLevel = 'high';
                 newSettings.frequency_penalty = 0.2;
                 newSettings.presence_penalty = 0.2;
             } else if (newProvider === 'openai' || newProvider === 'llama.cpp') {
                 newSettings.temperature = 0.8;
                 newSettings.frequency_penalty = 0.6;
                 newSettings.presence_penalty = 0.4;
+                newSettings.inputPrice = 0;
+                newSettings.outputPrice = 0;
             }
 
             this.editingConfig.set({
@@ -108,8 +127,7 @@ export class LLMSettingsComponent {
             settings: {
                 modelId: 'gemini-3-flash-preview',
                 apiKey: '',
-                thinkingLevelGeneral: 'high',
-                thinkingLevelStory: 'minimal',
+                thinkingLevel: 'high',
                 frequency_penalty: 0.2,
                 presence_penalty: 0.2
             }
@@ -135,11 +153,27 @@ export class LLMSettingsComponent {
         this.testStatus.set('');
     }
 
-    async saveConfig() {
+    saveConfig() {
         const config = this.editingConfig();
         if (config) {
-            await this.storage.save(config);
+            this.storage.save(config);
             this.editingConfig.set(null);
+        }
+    }
+
+    onPortalAttached(ref: any) {
+        if (!ref || !(ref instanceof ComponentRef)) return;
+
+        // Subscribe to child's configChanged output if it exists
+        const instance = ref.instance;
+        if (instance.configChanged) {
+            instance.configChanged.subscribe(() => {
+                const current = this.editingConfig();
+                if (current) {
+                    // Trigger signal refresh to re-run computed costInfo
+                    this.editingConfig.set({ ...current });
+                }
+            });
         }
     }
 

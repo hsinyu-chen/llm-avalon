@@ -30,115 +30,28 @@ export class LlamaService implements LLMProvider {
     private inputPrice = signal(0);
     private outputPrice = signal(0);
 
-    constructor() {
-        // Load settings from localStorage on initialization
-        this.loadSettings();
-    }
-
-    /**
-     * Get the current base URL from localStorage
-     * This ensures we always use the latest value
-     */
-    private getBaseUrlFromStorage(): string {
-        const savedUrl = localStorage.getItem('llama_base_url');
-        if (savedUrl) {
-            return savedUrl.replace(/\/$/, '');
-        }
-        return 'http://localhost:8080';
-    }
-
-    /**
-     * Get the current model ID from localStorage
-     * This ensures we always use the latest value
-     */
-    private getModelIdFromStorage(): string {
-        const savedModelId = localStorage.getItem('llama_model_id');
-        if (savedModelId) {
-            return savedModelId;
-        }
-        return 'local-model';
-    }
-
-    /**
-     * Load settings from localStorage
-     */
-    private loadSettings(): void {
-        this.baseUrl.set(this.getBaseUrlFromStorage());
-        this.modelId.set(this.getModelIdFromStorage());
-        const savedTemp = localStorage.getItem('llama_temperature');
-        if (savedTemp) {
-            this.temperature.set(parseFloat(savedTemp));
-        }
-        this.frequencyPenalty.set(parseFloat(localStorage.getItem('llama_frequency_penalty') || '0.6'));
-        this.presencePenalty.set(parseFloat(localStorage.getItem('llama_presence_penalty') || '0.4'));
-        this.inputPrice.set(parseFloat(localStorage.getItem('llama_input_price') || '0'));
-        this.outputPrice.set(parseFloat(localStorage.getItem('llama_output_price') || '0'));
-    }
-
-    /**
-     * Refresh settings from localStorage
-     */
-    refreshSettings(): void {
-        this.baseUrl.set(localStorage.getItem('llama_base_url') || 'http://localhost:8080');
-        this.modelId.set(localStorage.getItem('llama_model_id') || 'local-model');
-        const savedTemp = localStorage.getItem('llama_temperature');
-        if (savedTemp) {
-            this.temperature.set(parseFloat(savedTemp));
-        }
-        this.frequencyPenalty.set(parseFloat(localStorage.getItem('llama_frequency_penalty') || '0.6'));
-        this.presencePenalty.set(parseFloat(localStorage.getItem('llama_presence_penalty') || '0.4'));
-        this.inputPrice.set(parseFloat(localStorage.getItem('llama_input_price') || '0'));
-        this.outputPrice.set(parseFloat(localStorage.getItem('llama_output_price') || '0'));
-    }
-
-    /**
-     * Update settings from external configuration
-     * @param config LLMProviderConfig containing baseUrl and modelId
-     */
-    private updateSettings(settings: { baseUrl?: string; modelId?: string; temperature?: number, frequency_penalty?: number, presence_penalty?: number, inputPrice?: number, outputPrice?: number }): void {
-        if (settings.baseUrl) {
-            const cleanedUrl = settings.baseUrl.replace(/\/$/, '');
-            this.baseUrl.set(cleanedUrl);
-            localStorage.setItem('llama_base_url', cleanedUrl);
-        }
-        if (settings.modelId) {
-            this.modelId.set(settings.modelId);
-            localStorage.setItem('llama_model_id', settings.modelId);
-        }
-        if (settings.temperature !== undefined) {
-            this.temperature.set(settings.temperature);
-            localStorage.setItem('llama_temperature', settings.temperature.toString());
-        }
-        if (settings.frequency_penalty !== undefined) {
-            this.frequencyPenalty.set(settings.frequency_penalty);
-            localStorage.setItem('llama_frequency_penalty', settings.frequency_penalty.toString());
-        }
-        if (settings.presence_penalty !== undefined) {
-            this.presencePenalty.set(settings.presence_penalty);
-            localStorage.setItem('llama_presence_penalty', settings.presence_penalty.toString());
-        }
-        if (settings.inputPrice !== undefined) {
-            this.inputPrice.set(settings.inputPrice);
-            localStorage.setItem('llama_input_price', settings.inputPrice.toString());
-        }
-        if (settings.outputPrice !== undefined) {
-            this.outputPrice.set(settings.outputPrice);
-            localStorage.setItem('llama_output_price', settings.outputPrice.toString());
-        }
-    }
-
     init(config: LLMProviderConfig): void {
-        this.updateSettings({
-            baseUrl: config.baseUrl,
-            modelId: config.modelId,
-            temperature: config.temperature,
-            frequency_penalty: config.frequency_penalty,
-            presence_penalty: config.presence_penalty,
-            inputPrice: config.inputPrice,
-            outputPrice: config.outputPrice
-        });
-        // Also refresh from localStorage to ensure latest values are used
-        this.refreshSettings();
+        if (config.baseUrl) {
+            this.baseUrl.set(config.baseUrl.replace(/\/$/, ''));
+        }
+        if (config.modelId) {
+            this.modelId.set(config.modelId);
+        }
+        if (config.temperature !== undefined) {
+            this.temperature.set(config.temperature);
+        }
+        if (config.frequency_penalty !== undefined) {
+            this.frequencyPenalty.set(config.frequency_penalty);
+        }
+        if (config.presence_penalty !== undefined) {
+            this.presencePenalty.set(config.presence_penalty);
+        }
+        if (config.inputPrice !== undefined) {
+            this.inputPrice.set(config.inputPrice);
+        }
+        if (config.outputPrice !== undefined) {
+            this.outputPrice.set(config.outputPrice);
+        }
     }
 
     isConfigured(): boolean {
@@ -170,36 +83,14 @@ export class LlamaService implements LLMProvider {
     }
 
     getDefaultModelId(): string {
-        return this.getModelIdFromStorage();
+        return 'local-model';
     }
 
     getModelId(): string {
         return this.modelId();
     }
 
-    saveConfig(config: LLMProviderConfig): void {
-        if (config.baseUrl) localStorage.setItem('llama_base_url', config.baseUrl);
-        if (config.modelId) localStorage.setItem('llama_model_id', config.modelId);
-        if (config.temperature !== undefined) localStorage.setItem('llama_temperature', config.temperature.toString());
-        if (config.frequency_penalty !== undefined) localStorage.setItem('llama_frequency_penalty', config.frequency_penalty.toString());
-        if (config.presence_penalty !== undefined) localStorage.setItem('llama_presence_penalty', config.presence_penalty.toString());
-        if (config.inputPrice !== undefined) localStorage.setItem('llama_input_price', config.inputPrice.toString());
-        if (config.outputPrice !== undefined) localStorage.setItem('llama_output_price', config.outputPrice.toString());
 
-        this.init(config);
-    }
-
-    getConfigFromStorage(): LLMProviderConfig {
-        return {
-            baseUrl: localStorage.getItem('llama_base_url') || 'http://localhost:8080',
-            modelId: localStorage.getItem('llama_model_id') || 'local-model',
-            temperature: parseFloat(localStorage.getItem('llama_temperature') || '0.8'),
-            frequency_penalty: parseFloat(localStorage.getItem('llama_frequency_penalty') || '0.6'),
-            presence_penalty: parseFloat(localStorage.getItem('llama_presence_penalty') || '0.4'),
-            inputPrice: parseFloat(localStorage.getItem('llama_input_price') || '0'),
-            outputPrice: parseFloat(localStorage.getItem('llama_output_price') || '0')
-        };
-    }
     async *generateContentStream(
         contents: LLMContent[],
         systemInstruction: string,

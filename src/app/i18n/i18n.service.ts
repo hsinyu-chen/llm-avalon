@@ -6,7 +6,7 @@ import { TRANSLATIONS, LangType } from './translations';
 })
 export class I18nService {
     private _userLang = signal<'system' | LangType>('system');
-    private _currentLang = signal<LangType>('zh-TW'); // Default
+    private _currentLang = signal<LangType>('en'); // Default is now English
 
     // Expose signals
     readonly userLang = this._userLang.asReadonly();
@@ -27,8 +27,8 @@ export class I18nService {
             return;
         }
 
-        const browserLang = navigator.language;
-        if (browserLang.toLowerCase().includes('zh')) {
+        const browserLang = navigator.language.toLowerCase();
+        if (browserLang.startsWith('zh')) {
             this._currentLang.set('zh-TW');
         } else {
             this._currentLang.set('en');

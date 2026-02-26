@@ -10,11 +10,12 @@ export function getVotePrompt(context: VoteContext): string[] {
     const teamNamesStr = context.proposedTeam.map(id => `${context.playerNames[id] || id}(${id})`).join(', ');
 
     return [
-        `Leader ${context.playerNames[context.leaderId] || context.leaderId} officially proposed a team for the current mission.`,
-        `🚨 THE TEAM YOU ARE VOTING ON IS: [${teamNamesStr}]`,
-        `⚠️ WARNING: Do not confuse this with any other team discussed in chat. You are voting ONLY on [${teamNamesStr}].`,
-        `Current mission score: Good ${goodWins} vs Evil ${evilWins}.`,
-        `Vote attempt: ${context.consecutiveFailedVotes + 1} of 5 (5 consecutive rejections = Evil wins immediately!).`,
+        `[VOTE TARGET]`,
+        `- **Officially Proposed Team**: [${teamNamesStr}]`,
+        `- **Leader**: ${context.playerNames[context.leaderId] || context.leaderId}`,
+        `- **Current Progress**: Round ${context.round} | Vote attempt ${context.consecutiveFailedVotes + 1}/5`,
+        `- **Score**: Good ${goodWins} vs Evil ${evilWins}`,
+        `⚠️ **WARNING**: Do not confuse this with any other team discussed in chat. You are voting ONLY on [${teamNamesStr}].`,
         excaliburLine,
         ``,
         `⚠️ IMPORTANT: Chat history is PURGED after this round ends. You MUST rely on your NOTE for info from previous rounds.`,
@@ -28,13 +29,5 @@ export function getVotePrompt(context: VoteContext): string[] {
         `- Analyze who proposed the team and their possible alignment.`,
         `- Consider the voting behavior of others: are some players always voting together?`,
         `- Voting is a tool for both building teams and sending signals.`,
-        `Respond in strict JSON:`,
-        `{`,
-        `  "self_check": "...",`,
-        `  "reasoning": "...",`,
-        `  "action": {`,
-        `    "voteChoice": true/false`,
-        `  }`,
-        `}`
     ];
 }

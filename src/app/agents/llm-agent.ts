@@ -26,6 +26,9 @@ import { getDiscussionTacticsPrompt } from './prompts/getDiscussionTacticsPrompt
 import { getCommunicationChannelsPrompt } from './prompts/getCommunicationChannelsPrompt';
 import { getOutputFormatPrompt } from './prompts/getOutputFormatPrompt';
 import { I18nService } from '../i18n/i18n.service';
+import { AgentFatalError } from '../models/errors';
+import { parse } from 'best-effort-json-parser';
+import { getAgentResponseSchema, getResponseFormatPrompt, AgentActionName } from './prompts/schemas';
 
 const MAX_RETRIES = 2;
 const MAX_API_RETRIES = 3;
@@ -45,9 +48,12 @@ export class LLMAgent implements IAgent {
     public myRole: Role | null = null;
     public roleInfo = '';
     public visiblePlayers: NightPhaseInfo['visiblePlayers'] = [];
+    public intelSummary?: string;
     public history: string[] = [];
     public note = '';
     public noteHistory: { round: number; note: string }[] = [];
+    private lastAssessment = '';
+    private lastStrategy = '';
     public systemInstruction = '';
     private _modelName = 'LLM';
     private _isThinking = signal(false);
@@ -65,7 +71,11 @@ export class LLMAgent implements IAgent {
     /** Expose night phase info for UI debug tooltip */
     getNightInfo(): string {
         if (this.visiblePlayers.length === 0) return 'No night info';
-        return this.visiblePlayers.map(p => `- ${p.name} (${p.id}): ${p.info}`).join('\n');
+        let info = this.visiblePlayers.map(p => `- ${p.name} (${p.id}): ${p.info}`).join('\n');
+        if (this.intelSummary) {
+            info += `\n\n${this.intelSummary}`;
+        }
+        return info;
     }
     /** Expose token usage for UI */
     getTokenUsage(): TokenUsage { return this.tokenUsage; }
@@ -73,6 +83,18 @@ export class LLMAgent implements IAgent {
     get modelName(): string { return this._modelName; }
     /** Expose thinking state for UI display */
     getIsThinking(): boolean { return this._isThinking(); }
+    /** Expose last assessment for UI */
+    getLastAssessment(): string { return this.lastAssessment; }
+    /** Expose last strategy for UI */
+    getLastStrategy(): string { return this.lastStrategy; }
+    updateStreamingAssessment(chunk: string) {
+        if (chunk === '') this.lastAssessment = '';
+        else this.lastAssessment += chunk;
+    }
+    updateStreamingStrategy(chunk: string) {
+        if (chunk === '') this.lastStrategy = '';
+        else this.lastStrategy += chunk;
+    }
 
     constructor(
         public readonly id: string,
@@ -111,6 +133,7 @@ export class LLMAgent implements IAgent {
     async onNightPhase(info: NightPhaseInfo): Promise<void> {
         this.myRole = info.myRole;
         this.visiblePlayers = info.visiblePlayers;
+        this.intelSummary = info.intelSummary;
         this.roleInfo = this.i18n.translate(`roleDescriptions.${info.myRole}`);
 
         // Build the comprehensive system instruction with full game rules
@@ -122,21 +145,39 @@ export class LLMAgent implements IAgent {
         this.history.push(`[System]: ${message}`);
     }
 
-    async proposeTeam(context: TeamProposalContext): Promise<ProposeTeamAction> {
+    async proposeTeam(context: TeamProposalContext, onChunk?: (chunk: string, field: 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<ProposeTeamAction> {
         const validIds = new Set(context.playerIds);
         const nameToId = new Map(Object.entries(context.playerNames).map(([id, name]) => [name, id]));
-        const prompt = this.buildPrompt(context, ...getProposeTeamPrompt(context));
+        // Build a map for "name(id)" format -> ID
+        const nameIdFormatToId = new Map(
+            Object.entries(context.playerNames).map(([id, name]) => [`${name}(${id})`, id])
+        );
+        const prompt = this.buildPrompt(context, 'proposeTeam', ...getProposeTeamPrompt(context));
 
         const result = await this.queryLLMWithValidation<ProposeTeamAction>(
             prompt,
-            { responseSchema: { type: 'object', properties: { self_check: { type: 'string', description: `MUST BE IN: ${this.i18n.translate('setup.languageName')}` }, reasoning: { type: 'string', description: `MUST BE IN: ${this.i18n.translate('setup.languageName')}` }, action: { type: 'object', properties: { teamMemberIds: { type: 'array', items: { type: 'string' } } }, required: ['teamMemberIds'] } }, required: ['self_check', 'reasoning', 'action'] } },
+            { responseSchema: getAgentResponseSchema('proposeTeam', this.i18n.translate('setup.languageName')) },
             (parsed) => {
                 if (!parsed.action || !Array.isArray(parsed.action.teamMemberIds)) return 'Response must contain action.teamMemberIds array.';
 
-                // Allow models to return player names instead of IDs
+                // Allow models to return player names instead of IDs, including "name(id)" format
                 parsed.action.teamMemberIds = parsed.action.teamMemberIds.map((val: string) => {
+                    // If it's already a valid ID, return as-is
                     if (validIds.has(val)) return val;
+
+                    // Try exact name match
                     if (nameToId.has(val)) return nameToId.get(val)!;
+
+                    // Try "name(id)" format
+                    if (nameIdFormatToId.has(val)) return nameIdFormatToId.get(val)!;
+
+                    // Try to extract ID from "name(id)" format using regex
+                    const match = val.match(/\(([^)]+)\)$/);
+                    if (match) {
+                        const extractedId = match[1];
+                        if (validIds.has(extractedId)) return extractedId;
+                    }
+
                     return val;
                 });
 
@@ -145,83 +186,52 @@ export class LLMAgent implements IAgent {
                 if (invalid.length > 0) return `Invalid player IDs: ${invalid.join(', ')}. Valid: ${context.playerIds.join(', ')}`;
                 if (new Set(parsed.action.teamMemberIds).size !== parsed.action.teamMemberIds.length) return 'Duplicate player IDs found.';
                 return null;
-            }
+            },
+            'proposeTeam',
+            onChunk as (chunk: string, field: string) => void
         );
 
-        if (result) {
-            result.promptText = prompt;
-            const teamNames = result.action.teamMemberIds.map(id => context.playerNames[id] || id).join(', ');
-            this.history.push(this.i18n.translate('agent.proposal.history', {
-                round: context.round,
-                names: teamNames,
-                reasoning: result.reasoning
-            }));
-            return result;
-        }
-        // Fallback
-        const others = context.playerIds.filter(id => id !== this.id);
-        return {
-            self_check: 'Fallback',
-            reasoning: 'API error or invalid response.',
-            action: {
-                teamMemberIds: [this.id, ...others.slice(0, context.teamSize - 1)]
-            }
-        };
+        result.promptText = prompt;
+        const teamNames = result.action.teamMemberIds.map(id => context.playerNames[id] || id).join(', ');
+        this.history.push(this.i18n.translate('agent.proposal.history', {
+            round: context.round,
+            names: teamNames
+        }));
+        return result;
     }
 
-    async vote(context: VoteContext): Promise<VoteAction> {
+    async vote(context: VoteContext, onChunk?: (chunk: string, field: 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<VoteAction> {
         const prompt = this.buildPrompt(
             context,
+            'vote',
             ...getVotePrompt(context)
         );
 
         const result = await this.queryLLMWithValidation<VoteAction>(
             prompt,
             {
-                responseSchema: {
-                    type: 'object',
-                    properties: {
-                        self_check: { type: 'string', description: `MUST BE IN: ${this.i18n.translate('setup.languageName')}` },
-                        reasoning: { type: 'string', description: `MUST BE IN: ${this.i18n.translate('setup.languageName')}` },
-                        action: {
-                            type: 'object',
-                            properties: {
-                                voteChoice: { type: 'boolean' }
-                            },
-                            required: ['voteChoice']
-                        }
-                    },
-                    required: ['self_check', 'reasoning', 'action']
-                }
+                responseSchema: getAgentResponseSchema('vote', this.i18n.translate('setup.languageName'))
             },
             (parsed) => {
                 if (!parsed.action || typeof parsed.action.voteChoice !== 'boolean') return 'Response must contain action.voteChoice (boolean).';
                 return null;
-            }
+            },
+            'vote',
+            onChunk as (chunk: string, field: string) => void
         );
 
-        if (result) {
-            result.promptText = prompt;
-            const teamNames = context.proposedTeam.map(id => context.playerNames[id] || id).join(', ');
-            const choice = result.action.voteChoice ? this.i18n.translate('agent.vote.approve') : this.i18n.translate('agent.vote.reject');
-            this.history.push(this.i18n.translate('agent.vote.history', {
-                round: context.round,
-                names: teamNames,
-                choice,
-                reasoning: result.reasoning
-            }));
-            return result;
-        }
-        return {
-            self_check: 'Fallback',
-            reasoning: 'API error or invalid response.',
-            action: {
-                voteChoice: false
-            }
-        };
+        result.promptText = prompt;
+        const teamNames = context.proposedTeam.map(id => context.playerNames[id] || id).join(', ');
+        const choice = result.action.voteChoice ? this.i18n.translate('agent.vote.approve') : this.i18n.translate('agent.vote.reject');
+        this.history.push(this.i18n.translate('agent.vote.history', {
+            round: context.round,
+            names: teamNames,
+            choice
+        }));
+        return result;
     }
 
-    async executeMission(context: MissionContext): Promise<MissionAction> {
+    async executeMission(context: MissionContext, onChunk?: (chunk: string, field: 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<MissionAction> {
         const teamInfo = ROLE_META[this.myRole!].team;
         if (teamInfo === Team.Good) {
             const msg = this.i18n.translate('agent.mission.goodSuccessReasoning');
@@ -230,6 +240,8 @@ export class LLMAgent implements IAgent {
             return {
                 self_check: check,
                 reasoning: msg,
+                situation_assessment: this.lastAssessment,
+                action_strategy: this.lastStrategy,
                 action: {
                     playedMissionResult: true
                 }
@@ -238,70 +250,49 @@ export class LLMAgent implements IAgent {
 
         const prompt = this.buildPrompt(
             context,
-            ...getExecuteMissionPrompt(context, this.name, this.id, this.i18n, this.myRole!)
+            'executeMission',
+            ...getExecuteMissionPrompt(context, this.name, this.id, this.i18n, this.myRole!, this.visiblePlayers, context.rolesInGame)
         );
 
         const result = await this.queryLLMWithValidation<MissionAction>(
             prompt,
             {
-                responseSchema: {
-                    type: 'object',
-                    properties: {
-                        self_check: { type: 'string', description: `MUST BE IN: ${this.i18n.translate('setup.languageName')}` },
-                        reasoning: { type: 'string', description: `MUST BE IN: ${this.i18n.translate('setup.languageName')}` },
-                        action: {
-                            type: 'object',
-                            properties: {
-                                playedMissionResult: { type: 'boolean' }
-                            },
-                            required: ['playedMissionResult']
-                        }
-                    },
-                    required: ['self_check', 'reasoning', 'action']
-                }
+                responseSchema: getAgentResponseSchema('executeMission', this.i18n.translate('setup.languageName'))
             },
             (parsed) => {
                 if (!parsed.action || typeof parsed.action.playedMissionResult !== 'boolean') return 'Response must contain action.playedMissionResult (boolean).';
                 return null;
-            }
+            },
+            'executeMission',
+            onChunk as (chunk: string, field: string) => void
         );
 
-        if (result) {
-            result.promptText = prompt;
-            const resStr = result.action.playedMissionResult ? this.i18n.translate('board.success') : this.i18n.translate('board.fail');
-            this.history.push(this.i18n.translate('agent.mission.historyPlayed', {
-                round: context.round,
-                result: resStr,
-                reasoning: result.reasoning
-            }));
-            return result;
-        }
-
-        return {
-            self_check: 'Fallback',
-            reasoning: 'API error or invalid response.',
-            action: {
-                playedMissionResult: true
-            }
-        };
+        result.promptText = prompt;
+        const resStr = result.action.playedMissionResult ? this.i18n.translate('board.success') : this.i18n.translate('board.fail');
+        this.history.push(this.i18n.translate('agent.mission.historyPlayed', {
+            round: context.round,
+            result: resStr
+        }));
+        return result;
     }
 
 
-    async assassinate(context: AssassinContext): Promise<AssassinateAction> {
+    async assassinate(context: AssassinContext, onChunk?: (chunk: string, field: 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<AssassinateAction> {
         const validIds = new Set(context.goodPlayerIds);
         const nameToId = new Map(Object.entries(context.playerNames).map(([id, name]) => [name, id]));
 
-        // Format full game history for assassination analysis
-        const gameHistoryText = this.formatFullGameHistory(context.allEvents);
+        // Filter roundEvents to include assassination discussion for buildPrompt
+        const assassinationEvents = context.allEvents.filter(e => e.type === 'DISCUSSION' && e.phase === 'ASSASSINATION_DISCUSSION');
 
         const prompt = this.buildPrompt(
-            context,
-            ...getAssassinatePrompt(context, gameHistoryText)
+            { ...context, round: context.round + 1, roundEvents: assassinationEvents },
+            'assassinate',
+            getAssassinatePrompt(context)
         );
 
         const result = await this.queryLLMWithValidation<AssassinateAction>(
             prompt,
-            { responseSchema: { type: 'object', properties: { self_check: { type: 'string', description: `MUST BE IN: ${this.i18n.translate('setup.languageName')}` }, reasoning: { type: 'string', description: `MUST BE IN: ${this.i18n.translate('setup.languageName')}` }, action: { type: 'object', properties: { targetId: { type: 'string' } }, required: ['targetId'] } }, required: ['self_check', 'reasoning', 'action'] } },
+            { responseSchema: getAgentResponseSchema('assassinate', this.i18n.translate('setup.languageName')) },
             (parsed) => {
                 if (!parsed.action || typeof parsed.action.targetId !== 'string') return 'Response must contain action.targetId (string).';
 
@@ -312,50 +303,34 @@ export class LLMAgent implements IAgent {
 
                 if (!validIds.has(parsed.action.targetId)) return `Invalid target player ID: ${parsed.action.targetId}. Valid: ${context.goodPlayerIds.join(', ')}`;
                 return null;
-            }
+            },
+            'assassinate',
+            onChunk as (chunk: string, field: string) => void
         );
 
-        if (result) {
-            result.promptText = prompt;
-            return result;
-        }
-        return {
-            self_check: 'Fallback',
-            reasoning: 'API error or invalid response.',
-            action: {
-                targetId: context.goodPlayerIds[0]
-            }
-        };
+        result.promptText = prompt;
+        return result;
     }
 
 
-    async speak(context: SpeakContext, onChunk?: (chunk: string, field: 'speech' | 'reasoning' | 'self_check') => void): Promise<SpeechAct> {
+    async speak(context: SpeakContext, onChunk?: (chunk: string, field: 'speech' | 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<SpeechAct> {
 
+
+        const validSignalTargets = Object.entries(context.playerNames)
+            .filter(([id]) => id !== this.id)
+            .map(([id, name]) => `${name}(${id})`)
+            .join(', ');
 
         const prompt = this.buildPrompt(
             context,
+            'speak',
             ...getSpeakPrompt(context, this.i18n, this.myRole!, this.name, this.id)
         );
 
         const result = await this.queryLLMWithValidation<SpeechAct>(
             prompt,
             {
-                responseSchema: {
-                    type: 'object',
-                    properties: {
-                        self_check: { type: 'string', description: `MUST BE IN: ${this.i18n.translate('setup.languageName')}` },
-                        reasoning: { type: 'string', description: `MUST BE IN: ${this.i18n.translate('setup.languageName')}` },
-                        action: {
-                            type: 'object',
-                            properties: {
-                                speech: { type: 'string' },
-                                readyToVote: { type: 'boolean' }
-                            },
-                            required: ['speech', 'readyToVote']
-                        }
-                    },
-                    required: ['self_check', 'reasoning', 'action']
-                }
+                responseSchema: getAgentResponseSchema('speak', this.i18n.translate('setup.languageName'))
             },
             (parsed) => {
                 if (!parsed.action || typeof parsed.action.speech !== 'string' || typeof parsed.action.readyToVote !== 'boolean') {
@@ -370,36 +345,23 @@ export class LLMAgent implements IAgent {
 
                 return 'Response must contain a non-empty speech string OR action.readyToVote: true.';
             },
+            'speak',
             onChunk as (chunk: string, field: string) => void
         );
 
-        if (result) {
-            result.promptText = prompt;
-            const hasSpeech = result.action.speech && result.action.speech.trim().length > 0;
-            if (hasSpeech) {
-                this.history.push(this.i18n.translate('agent.discussion.historySpoke', {
-                    round: context.round,
-                    speech: result.action.speech.trim(),
-                    reasoning: result.reasoning
-                }));
-            } else {
-                this.history.push(this.i18n.translate('agent.discussion.historyPassed', {
-                    round: context.round,
-                    reasoning: result.reasoning
-                }));
-            }
-            return result;
+        result.promptText = prompt;
+        const hasSpeech = result.action.speech && result.action.speech.trim().length > 0;
+        if (hasSpeech) {
+            this.history.push(this.i18n.translate('agent.discussion.historySpoke', {
+                round: context.round,
+                speech: result.action.speech.trim()
+            }));
+        } else {
+            this.history.push(this.i18n.translate('agent.discussion.historyPassed', {
+                round: context.round
+            }));
         }
-
-        return {
-            self_check: 'Fallback',
-            reasoning: 'API error or invalid response.',
-            action: {
-                speech: '...',
-                readyToVote: true
-            },
-            promptText: prompt
-        };
+        return result;
     }
 
 
@@ -412,12 +374,13 @@ export class LLMAgent implements IAgent {
 
         const prompt = this.buildPrompt(
             context,
+            'useExcalibur',
             ...getUseExcaliburPrompt(context)
         );
 
-        const result = await this.queryLLMWithValidation<{ targetId: string | null }>(
+        const result = await this.queryLLMWithValidation<{ targetId: string | null; situation_assessment: string; action_strategy: string; reasoning: string; self_check: string }>(
             prompt,
-            { responseSchema: { type: 'object', description: 'Excalibur usage decision', properties: { targetId: { type: 'string', nullable: true, description: 'The player ID whose mission card to flip, or null to skip using Excalibur' } }, required: ['targetId'] } },
+            { responseSchema: getAgentResponseSchema('useExcalibur', this.i18n.translate('setup.languageName')) },
             (parsed) => {
                 if (parsed.targetId !== null) {
                     // Allow models to return player names instead of IDs
@@ -429,9 +392,10 @@ export class LLMAgent implements IAgent {
                         return `targetId must be one of: ${holdersStr}, or null.`;
                 }
                 return null;
-            }
+            },
+            'useExcalibur'
         );
-        return result?.targetId ?? null;
+        return result.targetId;
     }
 
     async useLadyOfTheLake(context: LadyContext): Promise<string | null> {
@@ -440,12 +404,13 @@ export class LLMAgent implements IAgent {
 
         const prompt = this.buildPrompt(
             context,
+            'useLadyOfTheLake',
             ...getUseLadyOfTheLakePrompt(context)
         );
 
-        const result = await this.queryLLMWithValidation<{ targetId: string }>(
+        const result = await this.queryLLMWithValidation<{ targetId: string; situation_assessment: string; action_strategy: string; reasoning: string; self_check: string }>(
             prompt,
-            { responseSchema: { type: 'object', description: 'Lady of the Lake inspection target', properties: { targetId: { type: 'string', description: 'The player ID of the player you want to inspect for alignment' } }, required: ['targetId'] } },
+            { responseSchema: getAgentResponseSchema('useLadyOfTheLake', this.i18n.translate('setup.languageName')) },
             (parsed) => {
                 if (!parsed.targetId) return 'Must provide targetId.';
 
@@ -458,62 +423,82 @@ export class LLMAgent implements IAgent {
                 if (!validIds.has(parsed.targetId)) return `Invalid target player ID: ${parsed.targetId}. Valid: ${Array.from(validIds).join(', ')}`;
 
                 return null;
-            }
+            },
+            'useLadyOfTheLake'
         );
-        return result?.targetId ?? null;
+        return result.targetId;
     }
 
     async updateNote(context: NoteContext): Promise<string> {
         const prompt = this.buildPrompt(
             context,
+            'updateNote',
             ...getUpdateNotePrompt(context, this.myRole!, this.note, this.history, this.i18n)
         );
 
-        const result = await this.queryLLMWithValidation<{ newNote: string }>(
+        const result = await this.queryLLMWithValidation<{ newNote: string; situation_assessment: string; action_strategy: string; reasoning: string; self_check: string }>(
             prompt,
-            { responseSchema: { type: 'object', description: 'Updated personal note', properties: { newNote: { type: 'string', description: `Your updated personal note. MUST BE IN: ${this.i18n.translate('setup.languageName')}` } }, required: ['newNote'] } },
+            { responseSchema: getAgentResponseSchema('updateNote', this.i18n.translate('setup.languageName')) },
             (parsed) => {
                 if (!parsed.newNote || typeof parsed.newNote !== 'string') return 'Response must contain newNote (string).';
                 return null;
-            }
+            },
+            'updateNote'
         );
 
-        if (result) {
-            this.note = result.newNote;
-            this.noteHistory.push({ round: context.round, note: this.note });
-        }
+        this.note = result.newNote;
+        this.noteHistory.push({ round: context.round, note: this.note });
 
         // Clear history after consolidation into Note — prevents context explosion
+        // Only done upon SUCCESSFUL update to avoid memory loss on API error
         this.history = [];
 
         return this.note;
     }
 
-    async shareGameReflection(context: GameReflectionContext, onChunk?: (chunk: string, field: 'reflection' | 'self_check') => void): Promise<{ reflection: string; promptText?: string }> {
-        const prompt = getShareGameReflectionPrompt(context, this.myRole!, this.name, this.id, this.note, this.i18n);
-        const result = await this.queryLLMWithValidation<{ reflection: string }>(
+    async shareGameReflection(context: GameReflectionContext, onChunk?: (chunk: string, field: 'reflection' | 'self_check' | 'reasoning' | 'situation_assessment' | 'action_strategy') => void): Promise<{ reflection: string; self_check?: string; reasoning?: string; situation_assessment?: string; action_strategy?: string; promptText?: string; retryLogs?: string[] }> {
+        // Collect Assassination Discussion as "Events This Round"
+        const assassinationEvents = context.allEvents.filter(e => e.type === 'DISCUSSION' && e.phase === 'ASSASSINATION_DISCUSSION');
+
+        // Create a base context for buildPrompt
+        const baseCtx: BaseGameContext = {
+            round: context.round + 1, // Ensure voting history includes the last round
+            missionHistory: context.missions,
+            roundEvents: assassinationEvents,
+            playerNames: context.playerNames,
+            consecutiveFailedVotes: 0, // Game over
+            currentMissionSize: 0, // Game over
+            allEvents: context.allEvents,
+            rolesInGame: context.rolesInGame,
+            twoFailsRequiredInRound4: context.playerCount >= 7,
+            playerCount: context.playerCount,
+            hasSignaledThisRound: false
+        };
+
+        const instruction = getShareGameReflectionPrompt(context, this.myRole!, this.name, this.id, this.note, this.i18n);
+        const prompt = this.buildPrompt(baseCtx, 'shareGameReflection', instruction);
+
+        const result = await this.queryLLMWithValidation<{ reflection: string; self_check: string; reasoning: string; situation_assessment: string; action_strategy: string }>(
             prompt,
             {
-                responseSchema: {
-                    type: 'object',
-                    description: 'Post-game reflection with identity check',
-                    properties: {
-                        self_check: { type: 'string', description: `Confirmation in native language. MUST BE IN: ${this.i18n.translate('setup.languageName')}` },
-                        reflection: { type: 'string', description: `Reflection in native language. MUST BE IN: ${this.i18n.translate('setup.languageName')}` }
-                    },
-                    required: ['self_check', 'reflection']
-                }
+                responseSchema: getAgentResponseSchema('shareGameReflection', this.i18n.translate('setup.languageName'))
             },
             (parsed) => {
                 if (!parsed.reflection || typeof parsed.reflection !== 'string') return 'Response must contain reflection (string).';
                 return null;
             },
+            'shareGameReflection',
             onChunk as (chunk: string, field: string) => void
         );
 
         return {
-            reflection: result?.reflection ?? this.i18n.translate('agent.reflection.fallback'),
-            promptText: prompt
+            reflection: result.reflection,
+            self_check: result.self_check,
+            reasoning: result.reasoning,
+            situation_assessment: result.situation_assessment,
+            action_strategy: result.action_strategy,
+            promptText: prompt,
+            retryLogs: result.retryLogs
         };
     }
 
@@ -525,54 +510,89 @@ export class LLMAgent implements IAgent {
      * Build a prompt with standard preamble: identity + base game context + note + body sections.
      * All phase methods should use this to ensure consistent context injection.
      */
-    public buildPrompt(ctx: BaseGameContext, ...sections: string[]): string {
+    public buildPrompt(ctx: BaseGameContext, actionName?: AgentActionName, ...sections: string[]): string {
         const teamInfo = ROLE_META[this.myRole!].team;
         const myTeamText = teamInfo === Team.Good ? 'Good (Blue)' : 'Evil (Red)';
 
         const identity = [
             `[PRIVATE DATA - IDENTITY]`,
-            `You are **${this.name} (${this.id}).**`,
-            `Your team: **${myTeamText}**`,
-            `Your role: **${this.i18n.translate(`roles.${this.myRole}`)} (${this.myRole})**`
+            `- **Name**: ${this.name} (${this.id})`,
+            `- **Team**: ${myTeamText}`,
+            `- **Role**: ${this.i18n.translate(`roles.${this.myRole}`)} (${this.myRole})`,
+            `- **Role Power**: ${this.roleInfo}`
         ].join('\n');
 
-        const visibleInfo = this.visiblePlayers.length > 0
-            ? `[PRIVATE DATA - SECRET INTEL]\n### Night Phase Intel\n${this.visiblePlayers.map(p => `- ${p.name} (${p.id}): ${p.info}`).join('\n')}\n⚠️ This is YOUR SECRET intel. NEVER quote it directly in discussion!`
-            : `[PRIVATE DATA - SECRET INTEL]\n### Night Phase Intel\n${this.i18n.translate('agent.night.noInfo', { role: this.i18n.translate(`roles.${this.myRole}`) })}`;
+        const visibleInfo = [
+            `[PRIVATE DATA - SECRET INTEL]`,
+            `### Night Phase Intel`,
+            this.visiblePlayers.length > 0
+                ? `${this.visiblePlayers.map(p => `- ${p.name} (${p.id}): ${p.info}`).join('\n')}\n` +
+                (this.intelSummary ? `\n${this.intelSummary}\n` : '') +
+                `\n⚠️ **WARNING**: This is YOUR SECRET intel. NEVER quote it directly in discussion!`
+                : `${this.i18n.translate('agent.night.noInfo', { role: this.i18n.translate(`roles.${this.myRole}`) })}`,
+        ].join('\n');
 
-        const noteBlock = `[PRIVATE DATA - YOUR PERSONAL NOTE]\n===Your Note===\n${this.note || 'empty'}\n===============`;
+        const noteBlock = [
+            `[PRIVATE DATA - YOUR PERSONAL NOTE]`,
+            `### Your Note`,
+            this.note || '_empty_'
+        ].join('\n');
 
-        const recentThoughtsBlock = this.history.length > 0
-            ? `[PRIVATE DATA - YOUR RECENT ACTIONS & THOUGHTS THIS ROUND]\n${this.history.join('\n')}\n======================================================`
+        const analysisBlock = (this.lastAssessment || this.lastStrategy)
+            ? [
+                `[PRIVATE DATA - YOUR CURRENT ANALYSIS]`,
+                `### Latest Assessment`,
+                this.lastAssessment || 'N/A',
+                '',
+                `### Latest Strategy`,
+                this.lastStrategy || 'N/A'
+            ].join('\n')
             : '';
 
         // Format base game context
         const goodWins = ctx.missionHistory.filter(m => m.succeeded).length;
         const evilWins = ctx.missionHistory.filter(m => !m.succeeded).length;
 
+        // Build mission summary with private note for each mission
         const missionSummary = ctx.missionHistory.length > 0
-            ? ctx.missionHistory.map(m =>
-                `Round ${m.round}: ${m.succeeded ? '✅Success' : '❌Fail'} (${m.failsCount} fails, team: ${m.teamIds.map(id => ctx.playerNames[id] || id).join(',')})`
-            ).join('\n')
+            ? ctx.missionHistory.map(m => {
+                const playerInTeam = m.teamIds.includes(this.id);
+                let privateNote = '';
+                if (playerInTeam) {
+                    const teamInfo = ROLE_META[this.myRole!].team;
+                    if (teamInfo === Team.Good) {
+                        // Good players always play success
+                        privateNote = `\n  > *(Private Note: you played **Success** in the mission)*`;
+                    } else {
+                        // For evil, show the actual mission result
+                        const resultText = m.succeeded ? 'Success' : 'Fail';
+                        privateNote = `\n  > *(Private Note: you played **${resultText}** in the mission)*`;
+                    }
+                }
+                return `- Round ${m.round}: ${m.succeeded ? '✅Success' : '❌Fail'} (${m.failsCount} fails, team: ${m.teamIds.map(id => ctx.playerNames[id] || id).join(',')})${privateNote}`;
+            }).join('\n')
             : 'No missions completed yet.';
 
         const roundEventsText = ctx.roundEvents.length > 0
             ? this.formatRoundHistory(ctx.roundEvents)
             : 'No events this round.';
 
-        // Sort by ID to guarantee consistent p1,p2,...,pN ordering
         const playerRoster = Object.keys(ctx.playerNames)
             .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-            .map(id => `${ctx.playerNames[id]}(${id})`)
+            .map(id => `${ctx.playerNames[id]} (${id})`)
             .join(', ');
 
         const roleCounts = ctx.rolesInGame.reduce((acc, role) => {
             acc[role] = (acc[role] || 0) + 1;
             return acc;
         }, {} as Record<string, number>);
+
+        const goodCount = ctx.rolesInGame.filter(r => ROLE_META[r].team === Team.Good).length;
+        const evilCount = ctx.rolesInGame.filter(r => ROLE_META[r].team === Team.Evil).length;
+
         const rolesListText = Object.entries(roleCounts)
-            .map(([role, count]) => `${this.i18n.translate(`roles.${role as Role}`)}x${count}`)
-            .join(', ');
+            .map(([role, count]) => `${this.i18n.translate(`roles.${role as Role}`)} x ${count}`)
+            .join(', ') + ` (${this.i18n.translate('setup.good')}: ${goodCount}, ${this.i18n.translate('setup.evil')}: ${evilCount})`;
 
         let matchPointWarning = '';
         if (goodWins === 2 && evilWins === 2) {
@@ -589,20 +609,42 @@ export class LLMAgent implements IAgent {
         }
 
         const baseContext = [
-            `[PUBLIC DATA - EVERYONE SEES THIS]`,
-            `===Game State===`,
-            `Roles in THIS game: ${rolesListText}`,
-            `Player list: ${playerRoster}`,
-            `Round: ${ctx.round} | Score: Good ${goodWins} - Evil ${evilWins} | Failed votes: ${ctx.consecutiveFailedVotes}/5`,
-            ...(matchPointWarning ? [matchPointWarning] : []),
-            ...(twoFailsWarning ? [twoFailsWarning] : []),
-            `Mission history:\n${missionSummary}`,
-            `Voting history (Previous Rounds):\n${this.formatVotingHistory(ctx.allEvents, ctx.round, ctx.playerNames)}`,
-            `Events this round:\n${roundEventsText}`,
-            `================`
+            `[PUBLIC DATA - COMMON KNOWLEDGE]`,
+            `### Game State`,
+            `- **Roles**: ${rolesListText}`,
+            `- **Players**: ${playerRoster}`,
+            `- **Score**: Good ${goodWins} vs Evil ${evilWins}`,
+            `- **Progress**: Round ${ctx.round} | Failed votes: ${ctx.consecutiveFailedVotes}/5`,
+            ...(matchPointWarning ? [`- ⚠️ **Warning**: ${matchPointWarning}`] : []),
+            ...(twoFailsWarning ? [`- ⚠️ **Warning**: ${twoFailsWarning}`] : []),
+            '',
+            `#### Mission History`,
+            missionSummary,
+            '',
+            `#### Voting History`,
+            this.formatVotingHistory(ctx.allEvents, ctx.playerNames),
+            '',
+            `#### Events This Round`,
+            roundEventsText
         ].join('\n');
 
-        return [identity, visibleInfo, noteBlock, recentThoughtsBlock, baseContext, '', ...sections.filter(s => s !== '')].filter(s => s !== '').join('\n');
+
+        const actionInstructions = sections.filter(s => s !== '');
+
+        if (actionName) {
+            const lang = this.i18n.translate('setup.languageName');
+            actionInstructions.push(getResponseFormatPrompt(actionName, lang));
+        }
+
+        return [
+            identity,
+            visibleInfo,
+            noteBlock,
+            analysisBlock,
+            baseContext,
+            actionInstructions.length > 0 ? `[CURRENT ACTION INSTRUCTIONS]` : '',
+            ...actionInstructions
+        ].filter(s => s !== '').join('\n\n');
     }
 
 
@@ -613,15 +655,24 @@ export class LLMAgent implements IAgent {
             switch (e.type) {
                 case 'DISCUSSION': {
                     const msg = e.message?.trim();
-                    if (!msg) return ''; // Skip empty messages (when passing without speech)
-                    return `[Chat] ${e.playerName}: ${msg}`;
+                    let privateNote = '';
+                    if (e.privateNotes && e.privateNotes[this.id]) {
+                        privateNote = `\n  ${e.privateNotes[this.id]}`;
+                    }
+                    if (!msg && !privateNote) return ''; // Skip empty messages (when passing without speech)
+                    const chatLog = msg ? `- **[Chat] ${e.playerName}${e.playerId == this.id ? ' (You)' : ''}**: ${msg}` : '';
+                    return chatLog + privateNote;
                 }
-                case 'TEAM_PROPOSAL': return `[Proposal] ${e.leaderName} proposed: ${e.teamNames.join(', ')}`;
-                case 'VOTE_RESULTS': return `[Vote] ${e.passed ? 'PASSED' : 'REJECTED'}. ${e.votes.map(v => `${v.name}:${v.approve ? 'O' : 'X'}`).join(', ')}`;
-                case 'MISSION_OUTCOME': return `[Mission] ${e.succeeded ? 'SUCCESS' : 'FAIL'} (fails: ${e.failsCount})`;
+                case 'TEAM_PROPOSAL': return `- **[Proposal] ${e.leaderName}${e.leaderId == this.id ? ' (You)' : ''}** proposed: ${e.teamNames.join(', ')}`;
+                case 'VOTE_RESULTS': {
+                    const teamStr = e.teamNames ? `(Team: ${e.teamNames.join(', ')}) ` : '';
+                    return `- **[Vote] ${e.passed ? 'PASSED' : 'REJECTED'}**. ${teamStr}${e.votes.map(v => `${v.name}${v.name == this.name ? ' (You)' : ''}: ${v.approve ? 'O' : 'X'}`).join(', ')}`;
+                }
+                case 'MISSION_OUTCOME': {
+                    return `- **[Mission] ${e.succeeded ? 'SUCCESS' : 'FAIL'}** (fails: ${e.failsCount})`;
+                }
                 case 'SYSTEM': {
-                    if (e.message.includes('跳過發言') || e.message.includes('skipped')) return '';
-                    return `[System] ${e.message}`;
+                    return `- **[System]** ${e.message}`;
                 }
                 default: return '';
             }
@@ -629,35 +680,30 @@ export class LLMAgent implements IAgent {
     }
 
     /** Format full voting history for previous rounds in a compact way. */
-    private formatVotingHistory(events: GameEvent[], currentRound: number, playerNames: Record<string, string>): string {
+    private formatVotingHistory(events: GameEvent[], playerNames: Record<string, string>): string {
         const history: string[] = [];
         let voteAttempt = 1;
 
         for (const e of events) {
             if ('round' in e && e.round !== undefined) {
-                if (e.round < currentRound) {
-                    if (e.type === 'TEAM_PROPOSAL') {
-                        const teamStr = e.teamIds.map(id => playerNames[id] || id).join(',');
-                        history.push(`R${e.round}-V${voteAttempt}: Leader(${e.leaderName}) proposed [${teamStr}]`);
-                    } else if (e.type === 'VOTE_RESULTS') {
-                        // Find the corresponding proposal in the history array by searching backwards
-                        const targetStr = `R${e.round}-V${voteAttempt}`;
-                        for (let i = history.length - 1; i >= 0; i--) {
-                            if (history[i].startsWith(targetStr)) {
-                                const votesStr = e.votes.map(v => `${v.name}:${v.approve ? 'O' : 'X'}`).join(',');
-                                history[i] += ` -> ${e.passed ? 'PASSED' : 'REJECTED'} (Votes: ${votesStr})`;
-                                break;
-                            }
+                if (e.type === 'TEAM_PROPOSAL') {
+                    const teamStr = e.teamIds.map(id => playerNames[id] || id).join(',');
+                    history.push(`R${e.round}-V${voteAttempt}: Leader(${e.leaderName}) proposed [${teamStr}]`);
+                } else if (e.type === 'VOTE_RESULTS') {
+                    // Find the corresponding proposal in the history array by searching backwards
+                    const targetStr = `R${e.round}-V${voteAttempt}`;
+                    for (let i = history.length - 1; i >= 0; i--) {
+                        if (history[i].startsWith(targetStr)) {
+                            const votesStr = e.votes.map(v => `${v.name}:${v.approve ? 'O' : 'X'}`).join(',');
+                            const teamStr = e.teamNames ? ` [Team: ${e.teamNames.join(',')}]` : '';
+                            history[i] += ` -> ${e.passed ? 'PASSED' : 'REJECTED'}${teamStr} (Votes: ${votesStr})`;
+                            break;
                         }
-                        voteAttempt++;
-                    } else if (e.type === 'MISSION_OUTCOME') {
-                        voteAttempt = 1;
-                        history.push(`R${e.round}-RESULT: ${e.succeeded ? 'SUCCESS' : 'FAIL'} (fails: ${e.failsCount})`);
-                    } else if (e.type === 'SYSTEM' && !e.message.includes('跳過發言') && !e.message.includes('skipped')) {
-                        history.push(`R${e.round}-SYSTEM: ${e.message}`);
                     }
-                } else if (e.round === currentRound && e.type === 'VOTE_RESULTS') {
                     voteAttempt++;
+                } else if (e.type === 'MISSION_OUTCOME') {
+                    voteAttempt = 1;
+                    history.push(`R${e.round}-RESULT: ${e.succeeded ? 'SUCCESS' : 'FAIL'} (fails: ${e.failsCount})`);
                 }
             }
         }
@@ -669,12 +715,21 @@ export class LLMAgent implements IAgent {
     public formatFullGameHistory(events: GameEvent[]): string {
         return events.map(e => {
             switch (e.type) {
-                case 'ROUND_START': return `\n--- Round ${e.round} ---`;
-                case 'DISCUSSION': return `[Chat] ${e.playerName}: ${e.message}`;
-                case 'TEAM_PROPOSAL': return `[Proposal] ${e.leaderName} proposed: ${e.teamNames.join(', ')}`;
-                case 'VOTE_RESULTS': return `[Vote R${e.round}] ${e.passed ? 'PASSED' : 'REJECTED'}. ${e.votes.map(v => `${v.name}:${v.approve ? 'O' : 'X'}`).join(', ')}`;
-                case 'MISSION_OUTCOME': return `[Mission R${e.round}] ${e.succeeded ? 'SUCCESS' : 'FAIL'} (fails: ${e.failsCount}, team: ${e.teamNames.join(', ')})`;
-                case 'SYSTEM': return `[System] ${e.message}`;
+                case 'ROUND_START': return `\n### Round ${e.round}\n`;
+                case 'DISCUSSION': {
+                    let privateNote = '';
+                    if (e.privateNotes && e.privateNotes[this.id]) {
+                        privateNote = `\n  ${e.privateNotes[this.id]}`;
+                    }
+                    return `- **[Chat] ${e.playerName}**: ${e.message}${privateNote}`;
+                }
+                case 'TEAM_PROPOSAL': return `- **[Proposal] ${e.leaderName}** proposed: ${e.teamNames.join(', ')}`;
+                case 'VOTE_RESULTS': {
+                    const teamStr = e.teamNames ? ` (Team: ${e.teamNames.join(', ')})` : '';
+                    return `- **[Vote R${e.round}] ${e.passed ? 'PASSED' : 'REJECTED'}**. ${teamStr} | ${e.votes.map(v => `${v.name}:${v.approve ? 'O' : 'X'}`).join(', ')}`;
+                }
+                case 'MISSION_OUTCOME': return `- **[Mission R${e.round}] ${e.succeeded ? 'SUCCESS' : 'FAIL'}** (fails: ${e.failsCount}, team: ${e.teamNames.join(', ')})`;
+                case 'SYSTEM': return `- **[System]** ${e.message}`;
                 default: return '';
             }
         }).filter(s => s !== '').join('\n');
@@ -752,38 +807,77 @@ export class LLMAgent implements IAgent {
         prompt: string,
         config: LLMGenerateConfig,
         validate: (parsed: T) => string | null,
+        actionName: string,
         onFieldChunk?: (chunk: string, field: string) => void
-    ): Promise<T | null> {
+    ): Promise<T & { retryLogs?: string[] }> {
         const provider = await this.getProvider();
-        const contents: LLMContent[] = [
-            { role: 'user', parts: [{ text: prompt }] }
-        ];
+        const contents: LLMContent[] = [{ role: 'user', parts: [{ text: prompt }] }];
+        const retryLogs: string[] = [];
 
         this._isThinking.set(true);
+        let lastError = '';
         try {
             for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-                const responseText = await this.streamLLM(provider, contents, config, onFieldChunk);
+                // Signal UI to clear any partial output from previous failed attempt
+                if (onFieldChunk && attempt > 0) {
+                    onFieldChunk('', 'speech');
+                    onFieldChunk('', 'reasoning');
+                    onFieldChunk('', 'situation_assessment');
+                    onFieldChunk('', 'action_strategy');
+                    onFieldChunk('', 'self_check');
+                    onFieldChunk('', 'reflection');
+                }
 
-                // Append model's response to conversation history
+                const responseText = await this.streamLLM(provider, contents, config, onFieldChunk, retryLogs);
+
+                // Append model's response to conversation history (internal to this query session)
                 contents.push({ role: 'model', parts: [{ text: responseText }] });
 
                 try {
-                    const parsed = JSON.parse(responseText) as T;
+                    const parsed = parse(responseText) as T;
                     const error = validate(parsed);
-                    if (!error) return parsed; // Valid!
+                    if (!error) {
+                        // Store internal thoughts for context maintenance
+                        const anyParsed = parsed as any;
+                        if (anyParsed.situation_assessment) this.lastAssessment = anyParsed.situation_assessment;
+                        if (anyParsed.action_strategy) this.lastStrategy = anyParsed.action_strategy;
+                        return { ...parsed, retryLogs: retryLogs.length > 0 ? retryLogs : undefined };
+                    }
 
                     // Invalid — append correction and retry
-                    console.warn(`[LLMAgent:${this.name}] Validation failed (attempt ${attempt + 1}/${MAX_RETRIES + 1}): ${error}`);
-                    contents.push({ role: 'user', parts: [{ text: `Invalid response: ${error}\nPlease retry with the exact format required.` }] });
+                    lastError = error;
+                    const logMsg = `Validation failed (attempt ${attempt + 1}/${MAX_RETRIES + 1}): ${error}`;
+                    console.warn(`[LLMAgent:${this.name}] ${logMsg}`);
+                    retryLogs.push(`[${new Date().toLocaleTimeString()}] ${logMsg}`);
+
+                    contents.push({
+                        role: 'user',
+                        parts: [
+                            {
+                                text: `Invalid response: ${error}\nPlease retry with the exact format required.`,
+                            },
+                        ],
+                    });
                 } catch (e) {
                     // JSON parse failure — append correction
-                    console.warn(`[LLMAgent:${this.name}] JSON parse failed (attempt ${attempt + 1}/${MAX_RETRIES + 1}):`, e);
-                    contents.push({ role: 'user', parts: [{ text: `Your response is not valid JSON. Raw: "${responseText}"\nPlease retry with valid JSON only.` }] });
+                    lastError = (e as Error).message || 'JSON parse failed';
+                    const logMsg = `JSON parse failed (attempt ${attempt + 1}/${MAX_RETRIES + 1}): ${lastError}`;
+                    console.warn(`[LLMAgent:${this.name}] ${logMsg}`, e);
+                    retryLogs.push(`[${new Date().toLocaleTimeString()}] ${logMsg}`);
+
+                    contents.push({
+                        role: 'user',
+                        parts: [
+                            {
+                                text: `Your response is not valid JSON. Raw: "${responseText}"\nPlease retry with valid JSON only.`,
+                            },
+                        ],
+                    });
                 }
             }
 
             console.error(`[LLMAgent:${this.name}] All ${MAX_RETRIES + 1} attempts failed for prompt.`);
-            return null;
+            throw new AgentFatalError(this.id, this.name, actionName, lastError);
         } finally {
             this._isThinking.set(false);
         }
@@ -802,9 +896,10 @@ export class LLMAgent implements IAgent {
     }
 
     /** Stream a response from the provider given a conversation. */
-    private async streamLLM(provider: LLMProvider, contents: LLMContent[], config: LLMGenerateConfig, onFieldChunk?: (chunk: string, field: string) => void): Promise<string> {
+    private async streamLLM(provider: LLMProvider, contents: LLMContent[], config: LLMGenerateConfig, onFieldChunk?: (chunk: string, field: string) => void, retryLogs: string[] = []): Promise<string> {
         let fullText = '';
         let finalUsageMetadata: LLMUsageMetadata | undefined;
+        let streamSucceeded = false;
 
         let llmConfig;
         if (this.configId) {
@@ -830,7 +925,13 @@ export class LLMAgent implements IAgent {
         try {
             for (let attempt = 0; attempt <= MAX_API_RETRIES; attempt++) {
                 try {
+                    if (attempt === 0) {
+                        this.lastAssessment = '';
+                        this.lastStrategy = '';
+                    }
                     fullText = ''; // Reset on retry
+                    finalUsageMetadata = undefined; // Reset usage metadata on each retry attempt
+                    streamSucceeded = false;
                     const stream = provider.generateContentStream(contents, this.systemInstruction, config);
 
                     // Simple state machine to extract fields during streaming
@@ -855,6 +956,8 @@ export class LLMAgent implements IAgent {
                                         const messageIndex = fullText.indexOf('"message": "', lastReportedLength);
                                         const reflectionIndex = fullText.indexOf('"reflection": "', lastReportedLength);
                                         const reasoningIndex = fullText.indexOf('"reasoning": "', lastReportedLength);
+                                        const assessmentIndex = fullText.indexOf('"situation_assessment": "', lastReportedLength);
+                                        const strategyIndex = fullText.indexOf('"action_strategy": "', lastReportedLength);
                                         const selfCheckIndex = fullText.indexOf('"self_check": "', lastReportedLength);
 
                                         let minIndex = Infinity;
@@ -865,6 +968,8 @@ export class LLMAgent implements IAgent {
                                         if (messageIndex !== -1 && messageIndex < minIndex) { minIndex = messageIndex; field = 'message'; offset = 12; }
                                         if (reflectionIndex !== -1 && reflectionIndex < minIndex) { minIndex = reflectionIndex; field = 'reflection'; offset = 15; }
                                         if (reasoningIndex !== -1 && reasoningIndex < minIndex) { minIndex = reasoningIndex; field = 'reasoning'; offset = 14; }
+                                        if (assessmentIndex !== -1 && assessmentIndex < minIndex) { minIndex = assessmentIndex; field = 'situation_assessment'; offset = 25; }
+                                        if (strategyIndex !== -1 && strategyIndex < minIndex) { minIndex = strategyIndex; field = 'action_strategy'; offset = 20; }
                                         if (selfCheckIndex !== -1 && selfCheckIndex < minIndex) { minIndex = selfCheckIndex; field = 'self_check'; offset = 15; }
 
                                         if (field) {
@@ -906,27 +1011,40 @@ export class LLMAgent implements IAgent {
                     }
 
                     // If we get here, the stream finished successfully
+                    streamSucceeded = true;
                     break;
 
                 } catch (e) {
                     const error = e as { status?: number, message?: string };
-                    const isRateLimit = error?.status === 429 ||
-                        (error?.message && error.message.includes('429')) ||
-                        (error?.message && error.message.includes('RESOURCE_EXHAUSTED'));
+                    const errorMsg = error?.message || String(e);
 
-                    if (isRateLimit && attempt < MAX_API_RETRIES) {
-                        const delayMs = BASE_DELAY_MS * Math.pow(2, attempt); // 2s, 4s, 8s
-                        console.warn(`[LLMAgent:${this.name}] Rate limit (429) hit. Retrying in ${delayMs}ms... (attempt ${attempt + 1}/${MAX_API_RETRIES})`);
+                    const isTransient =
+                        error?.status === 429 ||
+                        error?.status === 503 ||
+                        error?.status === 504 ||
+                        errorMsg.includes('429') ||
+                        errorMsg.includes('503') ||
+                        errorMsg.includes('RESOURCE_EXHAUSTED') ||
+                        errorMsg.includes('UNAVAILABLE') ||
+                        errorMsg.includes('Incomplete JSON segment') || // Stream interrupted
+                        errorMsg.includes('fetch failed');
+
+                    if (isTransient && attempt < MAX_API_RETRIES) {
+                        const delayMs = BASE_DELAY_MS * Math.pow(2, attempt);
+                        const logMsg = `[Transient Error] ${errorMsg}. Retrying in ${delayMs}ms... (attempt ${attempt + 1}/${MAX_API_RETRIES})`;
+                        console.warn(`[LLMAgent:${this.name}] ${logMsg}`);
+                        retryLogs.push(`[${new Date().toLocaleTimeString()}] ${logMsg}`);
                         await new Promise(resolve => setTimeout(resolve, delayMs));
-                        continue; // Try again
+                        continue;
                     }
 
-                    // If not rate limit, or we ran out of retries, throw
-                    throw error;
+                    // If not transient, or we ran out of retries, throw
+                    throw e;
                 }
             }
 
-            if (finalUsageMetadata) {
+            // Only update token usage if the stream actually succeeded
+            if (streamSucceeded && finalUsageMetadata) {
                 await this.updateTokenUsage(finalUsageMetadata);
             }
 
@@ -957,9 +1075,9 @@ export class LLMAgent implements IAgent {
 
             if (modelDef) {
                 const rates = modelDef.getRates(metadata.prompt);
-                const inputPrice = config.settings.inputPrice !== undefined ? config.settings.inputPrice : rates.input;
-                const outputPrice = config.settings.outputPrice !== undefined ? config.settings.outputPrice : rates.output;
-                const cachedPrice = rates.cached !== undefined ? rates.cached : inputPrice; // fallback to inputPrice
+                const inputPrice = rates.input;
+                const outputPrice = rates.output;
+                const cachedPrice = rates.cached ?? rates.input
 
                 const cost = ((metadata.prompt || 0) * inputPrice + (metadata.cached || 0) * cachedPrice + (metadata.candidates || 0) * outputPrice) / 1000000;
                 this.tokenUsage.totalCost += cost;

@@ -57,7 +57,6 @@ import { FormsModule } from '@angular/forms';
       height: 100vh;
       background: #0d1117;
       color: #c9d1d9;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       overflow: hidden;
     }
     header {

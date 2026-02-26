@@ -5,7 +5,7 @@
         <label for="playerCountSelect">{{ 'setup.playerCount' | translate }}:</label>
         <select id="playerCountSelect" [ngModel]="playerCount()" (ngModelChange)="playerCount.set(+$event)">
             @for (n of [5,6,7,8,9,10]; track n) {
-            <option [value]="n">{{n}}{{ 'setup.players' | translate }}</option>
+            <option [value]="n">{{n}} {{ 'setup.players' | translate }}</option>
             }
         </select>
         <span class="count-hint"> ({{ 'setup.good' | translate }}: {{targetCounts().good}} / {{ 'setup.evil' | translate
@@ -40,16 +40,35 @@
                 </select>
 
                 @if (p.type === 'llm') {
-                <select [ngModel]="p.configId" (ngModelChange)="updateAgent(i, { configId: $event })">
-                    <option value="">{{ 'setup.chooseConfig' | translate }}</option>
-                    @for (cfg of llmConfigs(); track cfg.id) {
-                    <option [value]="cfg.id">{{cfg.name}}</option>
+                <div class="llm-select-group">
+                    <select [ngModel]="p.configId" (ngModelChange)="updateAgent(i, { configId: $event })">
+                        <option value="">{{ 'setup.chooseConfig' | translate }}</option>
+                        @for (cfg of llmConfigs(); track cfg.id) {
+                        <option [value]="cfg.id">{{cfg.name}}</option>
+                        }
+                    </select>
+                    @if (p.configId && getAgentCostEstimate(p.configId); as est) {
+                    <span class="cost-est" title="Estimated game cost for this agent">
+                        ~ ${{ est | number:'1.2-3' }}
+                    </span>
                     }
-                </select>
+                </div>
                 }
             </div>
             }
         </div>
+
+        @if (totalEstimatedCost() > 0) {
+        <div class="total-cost-footer">
+            <div class="cost-info">
+                <span class="label">{{ 'settings.modelEstTotal' | translate }}</span>
+                <span class="value">$ {{totalEstimatedCost() | number:'1.2-3'}}</span>
+            </div>
+            <div class="disclaimer">
+                {{ 'settings.modelEstDisclaimer' | translate }}
+            </div>
+        </div>
+        }
     </div>
 
     <div class="roles-section">

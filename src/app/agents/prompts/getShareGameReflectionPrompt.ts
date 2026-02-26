@@ -7,14 +7,9 @@ export function getShareGameReflectionPrompt(context: GameReflectionContext, myR
     const winnerText = context.winner === Team.Good ? 'Good' : (context.winner === Team.Evil ? 'Evil' : 'Unknown');
     const myTeamText = teamInfo === Team.Good ? 'Good' : 'Evil';
     const assassinInfo = context.assassinTargetId
-        ? `Assassin targeted: ${context.assassinTargetId}.`
-        : 'No assassination happened.';
-    const merlinInfo = context.isMerlinKilled ? 'Merlin was assassinated.' : 'Merlin survived the assassination.';
-
+        ? `Assassination: Assassin ${context.isMerlinKilled ? 'Successfully' : 'Failed to'} killed Merlin (Target: ${context.playerNames[context.assassinTargetId] || context.assassinTargetId}).`
+        : '';
     const myRoleName = i18n.translate(`roles.${myRole}`);
-    // shareGameReflection doesn't use BaseGameContext, so use buildPromptRaw manually
-    const identity = `[PRIVATE DATA - IDENTITY]\nYou are ${name} (${id}), role: ${myRoleName}. You are on the ${myTeamText} team.`;
-    const noteBlock = `[PRIVATE DATA - YOUR PERSONAL NOTE]\n===Your Note===\n${note || 'empty'}\n===============`;
 
     const trueRolesText = context.playerRoles.map(p => {
         const rMeta = ROLE_META[p.role];
@@ -22,29 +17,30 @@ export function getShareGameReflectionPrompt(context: GameReflectionContext, myR
         return `- ${context.playerNames[p.id] || p.id} (${p.id}): ${rName} (${rMeta.team === Team.Good ? 'Good' : 'Evil'})`;
     }).join('\n');
 
-    return [identity, noteBlock, '',
+    const resultText = context.winner === teamInfo ? 'VICTORY' : 'DEFEAT';
+
+    return [
         `GAME OVER!`,
         `This game had ${context.playerCount} players, ${context.round} missions.`,
         `Mission results: ${context.missions.map(m => `Round ${m.round}: ${m.succeeded ? 'Success' : 'Fail'}`).join(', ')}.`,
-        `Winner: ${winnerText}.`,
         assassinInfo,
-        merlinInfo,
+        `The winner is the ${winnerText} team!`,
+        `You were ${name} (${myRoleName}), on the ${myTeamText} team.`,
+        `The game ended in your ${resultText}.`,
         ``,
-        `=== PUBLIC REVELATION - TRUE ROLES ===`,
+        `[PUBLIC REVELATION - TRUE ROLES]`,
         `The game is over, and all secret identities are now revealed:`,
         `EVERYONE'S TRUE ROLES ARE:`,
         trueRolesText,
         ``,
-        `=== IDENTITY RECOGNITION CHECK ===`,
-        `Before providing your reflection, you MUST perform a self-identity check.`,
-        `1. Confirm who you are: ${name} (${id}).`,
-        `2. Reflect on your performance as this character.`,
-        ``,
-        `Output in strict JSON format:`,
-        `{`,
-        `  "self_check": "I am ${name} (${id}). [Role reflection in ${i18n.translate('setup.languageName')}]",`,
-        `  "reflection": "your one-sentence reflection in ${i18n.translate('setup.languageName')}"`,
-        `}`,
-        `⚠️ CRITICAL: All fields MUST be written in ${i18n.translate('setup.languageName')}.`
+        `[REFLECTION GUIDELINES]`,
+        `All secret identities are now revealed. Before providing your summary, reflect on:`,
+        `1. LIGHTBULB MOMENTS: Compare these revealed roles with your suspicions during the game. Were you right about anyone? Who surprised you?`,
+        `2. STRATEGIC REVIEW: How did the revealed roles explain the success or failure of specific missions or votes?`,
+        `3. IDENTITY CHECK: Confirm you are ${name} (${id}) and how you feel about your own performance.`,
+        `4. PLAYER ANALYSIS (TURING TEST): Comment on at least one other player's abilities and speculate on their true nature.`,
+        `   - First, explicitly guess: Are they a HUMAN player or an AI MODEL?`,
+        `   - (Hint: Humans might show emotion, make minor logical leaps, or speak more casually. AI models tend to be overly analytical, robotic, or overly polite).`,
+        `   - If you guess AI MODEL, further specify if they are a basic, intermediate, or advanced model, and guess a specific model name(real world model name like GPT-4o, Claude 3.5, Gemini 3, etc.).`
     ].filter(s => s !== '').join('\n');
 }

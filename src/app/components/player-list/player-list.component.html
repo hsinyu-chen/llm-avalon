@@ -12,13 +12,25 @@
         }
         <div class="name">{{p.agent.name}}<span class="id">({{p.agent.id}})</span>
         </div>
-        <div class="role">{{ 'roles.' + p.role | translate }}</div>
+        <div class="role" [class.team-good]="ROLE_META[p.role].team === 'GOOD'" [class.team-evil]="ROLE_META[p.role].team === 'EVIL'">
+            {{ 'roles.' + p.role | translate }}
+        </div>
         <div class="model-badge">{{p.agent.modelName || 'Agent'}}</div>
 
 
-        @if (p.agent.getIsThinking?.()) {
+
         <div class="thinking-badge">
+            @if (p.agent.getIsThinking?.()) {
             <span class="spinner"></span> {{ 'playerList.thinking' | translate }}
+            }
+        </div>
+
+
+        @if (p.agent.getTokenUsage?.(); as usage) {
+        <div class="token-usage-mini">
+<div class="cost">💰 ${{ usage.totalCost | number:'1.4-8' }}</div>
+            <div class="tokens">In: {{usage.promptTokens + (usage.cachedTokens || 0)}} | Out: {{usage.completionTokens}}
+            </div>
         </div>
         }
     </div>

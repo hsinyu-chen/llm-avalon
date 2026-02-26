@@ -28,7 +28,8 @@ export interface MissionRecord {
 export interface DiscussionState {
     roundNumber: number;          // current discussion round (1-based)
     maxRounds: number;            // safety cap (default 10)
-    passedAgentIds: Set<string>;  // agents who have PASS-ed
+    passedAgentIds: Set<string>;   // agents who have PASS-ed
+    lastPersonSpeechCount?: Record<string, number>; // track for "last person standing" rule
 }
 
 export interface GameState {
@@ -40,7 +41,7 @@ export interface GameState {
     missions: MissionRecord[];
     proposedTeamIds: string[];
     discussion: DiscussionState | null;
-    error?: string | null;  // <--- ADDED
+    error?: string | null;
     winner: Team | null;
     assassinTargetId: string | null;
     isMerlinKilled: boolean;
@@ -50,8 +51,11 @@ export interface GameState {
     options?: GameOptions;
     excaliburHolder?: string | null; // Agent ID
     ladyHolder?: string | null;      // Agent ID
-    ladyHistory?: { holderId: string; targetId: string }[];
+    ladyHistory?: { holderId: string; targetId: string; result: boolean; claim?: string }[];
 
     // Structured Log
     events: GameEvent[];
+    isPaused?: boolean;
+    isThinking?: boolean;
+    signaledThisRoundIds?: string[]; // IDs of agents who used a signal this mission round
 }

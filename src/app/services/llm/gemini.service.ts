@@ -32,8 +32,7 @@ export class GeminiService implements LLMProvider {
     private client: GoogleGenAI = null!;
     private lastModelId: string = DEFAULT_GEMINI_MODEL_ID;
     private apiKey = signal('');
-    private thinkingLevelStory: ThinkingLevel = ThinkingLevel.MINIMAL;
-    private thinkingLevelGeneral: ThinkingLevel = ThinkingLevel.HIGH;
+    private thinkingLevel: ThinkingLevel = ThinkingLevel.MINIMAL;
 
     private readonly defaultTools: Tool[] = [];
 
@@ -84,6 +83,21 @@ export class GeminiService implements LLMProvider {
     getAvailableModels(): LLMModelDefinition[] {
         return [
             {
+                id: 'gemini-3.1-pro-preview',
+                name: 'Gemini 3.1 Pro Preview',
+                supportsThinking: true,
+                allowedThinkingLevels: ['low', 'high'],
+                getRates: (prompt = 0) => {
+                    const isLong = prompt > 200000;
+                    return {
+                        input: isLong ? 4.00 : 2.00,
+                        output: isLong ? 18.00 : 12.00,
+                        cached: isLong ? 0.40 : 0.20,
+                        cacheStorage: 4.50
+                    };
+                }
+            },
+            {
                 id: 'gemini-3-pro-preview',
                 name: 'Gemini 3 Pro Preview',
                 supportsThinking: true,
@@ -113,6 +127,25 @@ export class GeminiService implements LLMProvider {
                 }
             },
             {
+                id: 'gemini-2.5-flash-lite',
+                name: 'Gemini 2.5 Flash-Lite',
+                supportsThinking: true,
+                thinkingBudgetLevelMapping: {
+                    minimal: 1024,
+                    low: 4096,
+                    medium: 12288,
+                    high: 24576
+                },
+                getRates: () => {
+                    return {
+                        input: 0.10,
+                        output: 0.40,
+                        cached: 0.01,
+                        cacheStorage: 1.00
+                    };
+                }
+            },
+            {
                 id: 'gemini-2.5-flash',
                 name: 'Gemini 2.5 Flash',
                 supportsThinking: true,
@@ -127,19 +160,6 @@ export class GeminiService implements LLMProvider {
                         input: 0.30,
                         output: 2.50,
                         cached: 0.03,
-                        cacheStorage: 1.00
-                    };
-                }
-            },
-            {
-                id: 'gemini-2.0-flash',
-                name: 'Gemini 2.0 Flash',
-                supportsThinking: false,
-                getRates: () => {
-                    return {
-                        input: 0.10,
-                        output: 0.40,
-                        cached: 0.025,
                         cacheStorage: 1.00
                     };
                 }
@@ -158,39 +178,14 @@ export class GeminiService implements LLMProvider {
         return this.lastModelId;
     }
 
-    saveConfig(config: LLMProviderConfig): void {
-        if (config.apiKey) localStorage.setItem('gemini_api_key', config.apiKey);
-        if (config.modelId) localStorage.setItem('gemini_model_id', config.modelId);
-        if (config.enableCache !== undefined) localStorage.setItem('gemini_enable_cache', config.enableCache.toString());
-        if (config.thinkingLevelStory) localStorage.setItem('gemini_thinking_level_story', config.thinkingLevelStory);
-        if (config.thinkingLevelGeneral) localStorage.setItem('gemini_thinking_level_general', config.thinkingLevelGeneral);
-        if (config.frequency_penalty !== undefined) localStorage.setItem('gemini_frequency_penalty', config.frequency_penalty.toString());
-        if (config.presence_penalty !== undefined) localStorage.setItem('gemini_presence_penalty', config.presence_penalty.toString());
 
-        this.init(config);
-    }
-
-    getConfigFromStorage(): LLMProviderConfig {
-        return {
-            apiKey: localStorage.getItem('gemini_api_key') || '',
-            modelId: localStorage.getItem('gemini_model_id') || this.getDefaultModelId(),
-            thinkingLevelStory: localStorage.getItem('gemini_thinking_level_story') || 'minimal',
-            thinkingLevelGeneral: localStorage.getItem('gemini_thinking_level_general') || 'high',
-            frequency_penalty: localStorage.getItem('gemini_frequency_penalty') ? parseFloat(localStorage.getItem('gemini_frequency_penalty')!) : 0.2,
-            presence_penalty: localStorage.getItem('gemini_presence_penalty') ? parseFloat(localStorage.getItem('gemini_presence_penalty')!) : 0.2
-        };
-    }
-    /**
-     * Initialize using LLMProviderConfig (LLMProvider interface method).
-     */
     init(config: LLMProviderConfig): void {
         this.apiKey.set(config.apiKey || '');
         this.initialize(
             this.apiKey(),
             config.modelId || DEFAULT_GEMINI_MODEL_ID
         );
-        if (config.thinkingLevelStory) this.thinkingLevelStory = this.mapThinkingLevel(config.thinkingLevelStory);
-        if (config.thinkingLevelGeneral) this.thinkingLevelGeneral = this.mapThinkingLevel(config.thinkingLevelGeneral);
+        if (config.thinkingLevel) this.thinkingLevel = this.mapThinkingLevel(config.thinkingLevel);
     }
 
     isConfigured(): boolean {
@@ -212,11 +207,7 @@ export class GeminiService implements LLMProvider {
         const stream = await this.sendMessageStream(
             geminiContents,
             systemInstruction,
-            config.cachedContentName,
-            config.responseSchema as Schema,
-            config.responseMimeType,
-            config.toolConfig,
-            config.intent
+            config
         );
 
         // Yield converted chunks
@@ -302,18 +293,34 @@ export class GeminiService implements LLMProvider {
      * @param toolConfig Optional configuration for tools.
      * @returns A streaming response object.
      */
-    async sendMessageStream(contents: Content[], systemInstruction: string, cachedContentName?: string, responseSchema?: Schema, responseMimeType?: string, toolConfig?: object, intent?: string) {
+    async sendMessageStream(
+        contents: Content[],
+        systemInstruction: string,
+        config: LLMGenerateConfig = {}
+    ) {
         if (!this.client) throw new Error('Gemini client not initialized. Call initialize() first.');
+
+        const cachedContentName = config.cachedContentName;
+        const responseSchema = config.responseSchema as Schema;
+        const responseMimeType = config.responseMimeType;
+        const toolConfig = config.toolConfig;
 
         // Check if current model supports thinking
         const currentModel = this.getAvailableModels().find(m => m.id === this.lastModelId);
         const modelSupportsThinking = currentModel?.supportsThinking ?? false;
 
-        // Story intents use the story thinking level
-        const storyIntents = ['action', 'fastforward', 'continue'];
-        const currentThinkingLevel = intent && storyIntents.includes(intent)
-            ? this.thinkingLevelStory
-            : this.thinkingLevelGeneral;
+        const currentThinkingLevel = this.thinkingLevel;
+
+        // Extract configuration with defaults from LLMProviderConfig if not in GenerateConfig
+        const maxOutputTokens = config.maxOutputTokens;
+        const frequency_penalty = config.frequency_penalty;
+        const presence_penalty = config.presence_penalty;
+
+        // Version check: Gemini 2.0 and below benefit from frequency penalty to avoid repetition
+        // Gemini 2.5 and Gemini 3+ models (like gemini-3-flash) do not support or do not need it
+        const modelVersionMatch = this.lastModelId.match(/gemini-(\d+\.?\d*)/);
+        const version = modelVersionMatch ? parseFloat(modelVersionMatch[1]) : 3.0;
+        const isLegacyModel = version < 2.5;
 
         // Build config object dynamicly to allow API defaults
         const generationConfig: GenerateContentConfig = {
@@ -323,15 +330,21 @@ export class GeminiService implements LLMProvider {
                 { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
                 { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
                 { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE }
-            ],
-            maxOutputTokens: 800 // Provide a failsafe to prevent infinite looping
+            ]
         };
 
-        // Apply config parameters (Penalties are only supported by Gemini models < 3.0)
-        const storedConfig = this.getConfigFromStorage();
-        if (!this.lastModelId.includes('gemini-3')) {
-            if (storedConfig.frequency_penalty !== undefined) generationConfig.frequencyPenalty = storedConfig.frequency_penalty;
-            if (storedConfig.presence_penalty !== undefined) generationConfig.presencePenalty = storedConfig.presence_penalty;
+        if (maxOutputTokens) generationConfig.maxOutputTokens = maxOutputTokens;
+
+        // Apply presence penalty if provided
+        if (presence_penalty !== undefined) generationConfig.presencePenalty = presence_penalty;
+
+        // Apply frequency penalty
+        // 1. Use explicit config if provided
+        // 2. Otherwise apply a subtle 0.2 default for legacy (< v3) models to prevent repetitive "}}}}"
+        if (frequency_penalty !== undefined) {
+            generationConfig.frequencyPenalty = frequency_penalty;
+        } else if (isLegacyModel) {
+            generationConfig.frequencyPenalty = 0.2;
         }
 
         // Only add thinkingConfig for models that support it

@@ -37,27 +37,50 @@
                             <button class="debug-prompt-btn" (click)="openPromptDialog(event.promptText)"
                                 title="View Prompt">🔍</button>
                             }
-                            @if (event.isThinking) {
-                            <div class="thinking-badge">
-                                <span class="spinner"></span> {{ 'playerList.thinking' | translate }}
+                            @if (event.retryLogs && event.retryLogs.length > 0) {
+                            <button class="debug-prompt-btn retry-logs-btn"
+                                (click)="openRetryLogsDialog(event.retryLogs)" title="View Retry Logs">📜</button>
+                            }
+                            @if (event.status === 'error') {
+                            <div class="error-badge">
+                                <span>⚠️ Error</span>
+                                <button class="retry-btn" (click)="onRetry(event)">Retry</button>
                             </div>
                             }
                         </div>
-                        @if (event.self_check || event.reasoning) {
-                        <div class="inner-thoughts" [style.border-bottom]="event.message ? '1px solid #21262d' : 'none'"
-                            [style.margin-bottom]="event.message ? '8px' : '0'"
-                            [style.padding-bottom]="event.message ? '4px' : '0'"
-                            style="border-top: none; padding-top: 0;">
-                            @if (event.self_check) {
-                            <span>{{ event.self_check }}</span>
-                            }
+                        @if (event.error) {
+                        <div class="error-message">{{ event.error }}</div>
+                        }
+                        @if (event.self_check || event.reasoning || event.isThinking || (event.status === 'pending' &&
+                        !event.message)) {
+                        <div class="inner-thoughts" [class.no-border]="!event.message"
+                            [class.with-message]="event.message">
                             @if (event.reasoning) {
                             <span>{{ event.reasoning }}</span>
+                            }
+                            @if (event.status === 'pending' && !event.message) {
+                            <span class="spinner mini"></span>
                             }
                         </div>
                         }
                         @if (event.message) {
                         <div class="message">{{ event.message }}</div>
+                        }
+                        @if (event.privateNotes) {
+                        <div class="private-notes">
+                            @for (note of (event.privateNotes | keyvalue); track note.key) {
+                            @if (shouldShowNote(event, note.key)) {
+                            <div class="private-note-item">
+                                @if (showGodView() && note.key !== event.playerId) {
+                                <span class="note-recipient-label">
+                                    (To: {{ getPlayerName(note.key) }})
+                                </span>
+                                }
+                                {{ note.value }}
+                            </div>
+                            }
+                            }
+                        </div>
                         }
                     </div>
                 </div>
@@ -72,19 +95,39 @@
                         <button class="debug-prompt-btn" (click)="openPromptDialog(event.promptText)"
                             title="View Prompt">🔍</button>
                         }
+                        @if (event.retryLogs && event.retryLogs.length > 0) {
+                        <button class="debug-prompt-btn retry-logs-btn" (click)="openRetryLogsDialog(event.retryLogs)"
+                            title="View Retry Logs">📜</button>
+                        }
                         @if (event.isThinking) {
                         <div class="thinking-badge">
                             <span class="spinner"></span> {{ 'playerList.thinking' | translate }}
                         </div>
                         }
+                        @if (event.status === 'error') {
+                        <div class="error-badge">
+                            <span>⚠️ Error</span>
+                            <button class="retry-btn" (click)="onRetry(event)">Retry</button>
+                        </div>
+                        }
                         {{ 'board.proposeBtn' | translate }}:
+                        @if (event.error) {
+                        <div class="error-message">{{ event.error }}</div>
+                        }
                         <div class="team-list">
                             @for (name of event.teamNames; track name) {
                             <span class="team-member">{{ name }}</span>
                             }
                         </div>
-                        @if (event.reasoning) {
-                        <div class="vote-reasoning" style="margin-top: 8px;">{{ event.reasoning }}</div>
+                        @if (event.self_check || event.reasoning || event.isThinking || (event.status === 'pending' &&
+                        event.teamIds.length === 0)) {
+                        <div class="inner-thoughts" [class.no-border]="event.teamIds.length === 0"
+                            [class.with-message]="event.teamIds.length > 0">
+                            @if (event.reasoning) { <span>{{ event.reasoning }}</span> }
+                            @if (event.status === 'pending' && event.teamIds.length === 0) {
+                            <span class="spinner mini"></span>
+                            }
+                        </div>
                         }
                     </div>
                 </div>
@@ -93,11 +136,32 @@
                 @case ('VOTE_RESULTS') {
                 <div class="event-card vote" [class.passed]="event.passed">
                     <div class="card-header">
+                        @if (event.status === 'pending') {
+                        <div class="thinking-badge">
+                            <span class="spinner"></span> {{ 'playerList.thinking' | translate }}
+                        </div>
+                        } @else {
                         <span class="vote-icon">{{ event.passed ? '✅' : '❌' }}</span>
-                        <span>{{ 'timeline.vote' | translate }} {{ 'timeline.outcomeLabel' | translate }}: {{
+                        <span>
+                            {{ 'timeline.vote' | translate }} {{ 'timeline.outcomeLabel' | translate }}: {{
                             event.passed ? ('timeline.voteApprove' | translate) : ('timeline.voteReject' | translate)
-                            }}</span>
+                            }}
+                            @if (event.teamNames) {
+                            <span class="team-info">({{ event.teamNames.join(', ') }})</span>
+                            }
+                        </span>
+                        }
+                        @if (event.status === 'error') {
+                        <div class="error-badge">
+                            <span>⚠️ Error</span>
+                            <button class="retry-btn" (click)="onRetry(event)">Retry</button>
+                        </div>
+                        }
                     </div>
+                    @if (event.error) {
+                    <div class="error-message">{{ event.error }}</div>
+                    }
+                    @if (event.status !== 'pending') {
                     <div class="vote-grid">
                         @for (v of event.votes; track v.name) {
                         <div class="voter-container">
@@ -118,16 +182,33 @@
                     @if (!event.passed) {
                     <div class="fail-count">{{ 'board.failedVotes' | translate }}: {{ event.failCount }}/5</div>
                     }
+                    }
                 </div>
                 }
 
                 @case ('MISSION_OUTCOME') {
                 <div class="event-card mission" [class.success]="event.succeeded">
                     <div class="mission-header">
+                        @if (event.status === 'pending') {
+                        <div class="thinking-badge">
+                            <span class="spinner"></span> {{ 'playerList.thinking' | translate }}
+                        </div>
+                        } @else {
                         <span class="mission-icon">{{ event.succeeded ? '🏆' : '💀' }}</span>
                         <span>{{ 'timeline.missionLabel' | translate }} {{ 'timeline.outcomeLabel' | translate }}: {{
                             event.succeeded ? ('timeline.success' | translate) : ('timeline.fail' | translate) }}</span>
+                        }
+                        @if (event.status === 'error') {
+                        <div class="error-badge">
+                            <span>⚠️ Error</span>
+                            <button class="retry-btn" (click)="onRetry(event)">Retry</button>
+                        </div>
+                        }
                     </div>
+                    @if (event.error) {
+                    <div class="error-message">{{ event.error }}</div>
+                    }
+                    @if (event.status !== 'pending') {
                     <div class="mission-details">
                         {{ 'timeline.failsCount' | translate : {count: event.failsCount} }}
                         <div class="participants">
@@ -143,16 +224,64 @@
                             }
                         </div>
                         @if (event.reasonings && event.reasonings.length > 0) {
-                        <div class="mission-reasonings"
-                            style="margin-top: 8px; border-top: 1px dashed rgba(255,255,255,0.2); padding-top: 8px;">
+                        <div class="mission-reasonings">
                             @for (r of event.reasonings; track r.name) {
-                            <div class="reasoning-item" style="font-size: 0.85em; margin-bottom: 4px; color: #cbd5e1;">
+                            <div class="reasoning-item">
                                 <strong>{{r.name}}</strong>: {{r.reasoning}}
                                 @if (r.promptText) {
                                 <button class="debug-prompt-btn" (click)="openPromptDialog(r.promptText)"
                                     title="View Prompt">🔍</button>
                                 }
                             </div>
+                            }
+                        </div>
+                        }
+                    </div>
+                    }
+                </div>
+                }
+
+                @case ('ASSASSINATION') {
+                <div class="event-card assassination">
+                    <div class="card-icon">🗡️</div>
+                    <div class="card-body">
+                        <strong>{{ event.playerName }}</strong>
+                        @if (event.promptText) {
+                        <button class="debug-prompt-btn" (click)="openPromptDialog(event.promptText)"
+                            title="View Prompt">🔍</button>
+                        }
+                        @if (event.retryLogs && event.retryLogs.length > 0) {
+                        <button class="debug-prompt-btn retry-logs-btn" (click)="openRetryLogsDialog(event.retryLogs)"
+                            title="View Retry Logs">📜</button>
+                        }
+                        @if (event.isThinking) {
+                        <div class="thinking-badge">
+                            <span class="spinner"></span> {{ 'playerList.thinking' | translate }}
+                        </div>
+                        }
+                        @if (event.status === 'error') {
+                        <div class="error-badge">
+                            <span>⚠️ Error</span>
+                            <button class="retry-btn" (click)="onRetry(event)">Retry</button>
+                        </div>
+                        }
+                        {{ 'board.assassinateBtn' | translate }}:
+                        @if (event.error) {
+                        <div class="error-message">{{ event.error }}</div>
+                        }
+                        @if (event.targetName) {
+                        <div class="target-display">
+                            <span class="target-label">{{ 'timeline.assassinTarget' | translate }}:</span>
+                            <span class="target-name">{{ event.targetName }}</span>
+                        </div>
+                        }
+                        @if (event.self_check || event.reasoning || event.isThinking || (event.status === 'pending' &&
+                        !event.targetId)) {
+                        <div class="inner-thoughts" [class.no-border]="!event.targetId"
+                            [class.with-message]="!!event.targetId">
+                            @if (event.reasoning) { <span>{{ event.reasoning }}</span> }
+                            @if (event.status === 'pending' && !event.targetId) {
+                            <span class="spinner mini"></span>
                             }
                         </div>
                         }
@@ -182,7 +311,7 @@
                     </div>
                     <div class="bubble-content">
                         <div class="sender">
-                            {{ event.playerName }} (Review)
+                            {{ event.playerName }}
                             @if (getPlayerRoleInfo(event.playerName); as roleInfo) {
                             <span class="role-annotation" [class.team-good]="roleInfo.team === 'GOOD'"
                                 [class.team-evil]="roleInfo.team === 'EVIL'">
@@ -198,8 +327,45 @@
                                 <span class="spinner"></span> {{ 'playerList.thinking' | translate }}
                             </div>
                             }
+                            @if (event.status === 'error') {
+                            <div class="error-badge">
+                                <span>⚠️ Error</span>
+                                <button class="retry-btn" (click)="onRetry(event)">Retry</button>
+                            </div>
+                            }
                         </div>
-                        Broadway <div class="message">{{ event.message }}</div>
+                        @if (event.error) {
+                        <div class="error-message">{{ event.error }}</div>
+                        }
+                        @if (event.self_check || event.reasoning || event.isThinking || (event.status === 'pending' &&
+                        !event.message)) {
+                        <div class="inner-thoughts" [class.no-border]="!event.message"
+                            [class.with-message]="event.message">
+                            @if (event.reasoning) {
+                            <span>{{ event.reasoning }}</span>
+                            }
+                            @if (event.status === 'pending' && !event.message) {
+                            <span class="spinner mini"></span>
+                            }
+                        </div>
+                        }
+                        <div class="message">{{ event.message }}</div>
+                        @if (event.privateNotes) {
+                        <div class="private-notes">
+                            @for (note of (event.privateNotes | keyvalue); track note.key) {
+                            @if (showGodView() || note.key === perspectiveId()) {
+                            <div class="private-note-item">
+                                @if (showGodView()) {
+                                <span class="note-recipient-label">
+                                    (To: {{ getPlayerName(note.key) }})
+                                </span>
+                                }
+                                {{ note.value }}
+                            </div>
+                            }
+                            }
+                        </div>
+                        }
                     </div>
                 </div>
                 }
@@ -225,6 +391,17 @@
         </div>
         <div class="dialog-body">
             <pre><code>{{ selectedPromptText() }}</code></pre>
+        </div>
+    </dialog>
+
+    <dialog #retryLogsDialog class="prompt-dialog" (click)="onDialogClick($event)"
+        (keydown.escape)="closeRetryLogsDialog()" tabindex="-1">
+        <div class="dialog-header">
+            <h4>Retry Logs</h4>
+            <button class="close-btn" (click)="closeRetryLogsDialog()">✕</button>
+        </div>
+        <div class="dialog-body">
+            <pre><code>{{ selectedRetryLogs() | json }}</code></pre>
         </div>
     </dialog>
 </div>

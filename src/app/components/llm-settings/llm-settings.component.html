@@ -51,9 +51,35 @@
             <!-- Dynamic Portal for Provider Settings -->
             <div class="portal-wrapper">
                 @if (configPortal()) {
-                <ng-template [cdkPortalOutlet]="configPortal()"></ng-template>
+                <ng-template [cdkPortalOutlet]="configPortal()" (attached)="onPortalAttached($event)"></ng-template>
                 }
             </div>
+
+            @if (costInfo()) {
+            <div class="pricing-info">
+                <h4>{{ 'settings.modelPricingTitle' | translate }}</h4>
+                <p class="rates">
+                    {{ 'settings.modelRates' | translate }}<br>
+                    {{ 'settings.modelInput' | translate }} $ {{costInfo()!.rates.input | number:'1.2-4'}} |
+                    {{ 'settings.modelCached' | translate }} $ {{costInfo()!.rates.cached | number:'1.2-4'}} |
+                    {{ 'settings.modelOutput' | translate }} $ {{costInfo()!.rates.output | number:'1.2-4'}}
+                </p>
+                <p class="estimate">
+                    {{ 'settings.modelEstCost' | translate:{ input: prediction.EST_INPUT_TOKENS / 1000, cached:
+                    prediction.EST_CACHED_TOKENS /
+                    1000,
+                    output: prediction.EST_OUTPUT_TOKENS / 1000 } }}<br>
+                    <strong class="cost-range">$ {{costInfo()!.min | number:'1.2-4'}} ~ $ {{costInfo()!.max |
+                        number:'1.2-4'}}</strong>
+                </p>
+                <p class="estimate total">
+                    {{ 'settings.modelEstTotal' | translate }}<br>
+                    <strong class="cost-range">$ {{costInfo()!.min * 7 | number:'1.2-4'}} ~ $ {{costInfo()!.max * 7 |
+                        number:'1.2-4'}}</strong>
+                </p>
+                <small class="disclaimer">{{ 'settings.modelEstDisclaimer' | translate }}</small>
+            </div>
+            }
 
             <div class="editor-footer">
                 <div class="test-row">

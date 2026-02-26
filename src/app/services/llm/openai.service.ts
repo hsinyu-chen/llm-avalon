@@ -30,76 +30,31 @@ export class OpenAIService implements LLMProvider {
     private inputPrice = signal(0);
     private outputPrice = signal(0);
 
-    constructor() {
-        this.loadSettings();
-    }
-
-    private loadSettings(): void {
-        this.baseUrl.set(localStorage.getItem('openai_base_url') || 'https://api.openai.com/v1');
-        this.apiKey.set(localStorage.getItem('openai_api_key') || '');
-        this.modelId.set(localStorage.getItem('openai_model_id') || 'gpt-4o');
-        const savedTemp = localStorage.getItem('openai_temperature');
-        if (savedTemp) {
-            this.temperature.set(parseFloat(savedTemp));
-        }
-        this.frequencyPenalty.set(parseFloat(localStorage.getItem('openai_frequency_penalty') || '0.6'));
-        this.presencePenalty.set(parseFloat(localStorage.getItem('openai_presence_penalty') || '0.4'));
-        this.inputPrice.set(parseFloat(localStorage.getItem('openai_input_price') || '0'));
-        this.outputPrice.set(parseFloat(localStorage.getItem('openai_output_price') || '0'));
-    }
-
-    private updateSettings(settings: { baseUrl?: string; apiKey?: string; modelId?: string; temperature?: number, frequency_penalty?: number, presence_penalty?: number, inputPrice?: number, outputPrice?: number }): void {
-        if (settings.baseUrl) {
-            const cleanedUrl = settings.baseUrl.replace(/\/$/, '');
-            this.baseUrl.set(cleanedUrl);
-            localStorage.setItem('openai_base_url', cleanedUrl);
-        }
-        if (settings.apiKey !== undefined) {
-            this.apiKey.set(settings.apiKey);
-            localStorage.setItem('openai_api_key', settings.apiKey);
-        }
-        if (settings.modelId) {
-            this.modelId.set(settings.modelId);
-            localStorage.setItem('openai_model_id', settings.modelId);
-        }
-        if (settings.temperature !== undefined) {
-            this.temperature.set(settings.temperature);
-            localStorage.setItem('openai_temperature', settings.temperature.toString());
-        }
-        if (settings.frequency_penalty !== undefined) {
-            this.frequencyPenalty.set(settings.frequency_penalty);
-            localStorage.setItem('openai_frequency_penalty', settings.frequency_penalty.toString());
-        }
-        if (settings.presence_penalty !== undefined) {
-            this.presencePenalty.set(settings.presence_penalty);
-            localStorage.setItem('openai_presence_penalty', settings.presence_penalty.toString());
-        }
-        if (settings.inputPrice !== undefined) {
-            this.inputPrice.set(settings.inputPrice);
-            localStorage.setItem('openai_input_price', settings.inputPrice.toString());
-        }
-        if (settings.outputPrice !== undefined) {
-            this.outputPrice.set(settings.outputPrice);
-            localStorage.setItem('openai_output_price', settings.outputPrice.toString());
-        }
-    }
-
     init(config: LLMProviderConfig): void {
-        this.updateSettings({
-            baseUrl: config.baseUrl,
-            apiKey: config.apiKey,
-            modelId: config.modelId,
-            temperature: config.temperature,
-            frequency_penalty: config.frequency_penalty,
-            presence_penalty: config.presence_penalty,
-            inputPrice: config.inputPrice,
-            outputPrice: config.outputPrice
-        });
-        this.refreshSettings();
-    }
-
-    refreshSettings(): void {
-        this.loadSettings();
+        if (config.baseUrl) {
+            this.baseUrl.set(config.baseUrl.replace(/\/$/, ''));
+        }
+        if (config.apiKey !== undefined) {
+            this.apiKey.set(config.apiKey);
+        }
+        if (config.modelId) {
+            this.modelId.set(config.modelId);
+        }
+        if (config.temperature !== undefined) {
+            this.temperature.set(config.temperature);
+        }
+        if (config.frequency_penalty !== undefined) {
+            this.frequencyPenalty.set(config.frequency_penalty);
+        }
+        if (config.presence_penalty !== undefined) {
+            this.presencePenalty.set(config.presence_penalty);
+        }
+        if (config.inputPrice !== undefined) {
+            this.inputPrice.set(config.inputPrice);
+        }
+        if (config.outputPrice !== undefined) {
+            this.outputPrice.set(config.outputPrice);
+        }
     }
 
     isConfigured(): boolean {
@@ -136,31 +91,7 @@ export class OpenAIService implements LLMProvider {
         return this.modelId();
     }
 
-    saveConfig(config: LLMProviderConfig): void {
-        if (config.baseUrl) localStorage.setItem('openai_base_url', config.baseUrl);
-        if (config.apiKey) localStorage.setItem('openai_api_key', config.apiKey);
-        if (config.modelId) localStorage.setItem('openai_model_id', config.modelId);
-        if (config.temperature !== undefined) localStorage.setItem('openai_temperature', config.temperature.toString());
-        if (config.frequency_penalty !== undefined) localStorage.setItem('openai_frequency_penalty', config.frequency_penalty.toString());
-        if (config.presence_penalty !== undefined) localStorage.setItem('openai_presence_penalty', config.presence_penalty.toString());
-        if (config.inputPrice !== undefined) localStorage.setItem('openai_input_price', config.inputPrice.toString());
-        if (config.outputPrice !== undefined) localStorage.setItem('openai_output_price', config.outputPrice.toString());
 
-        this.init(config);
-    }
-
-    getConfigFromStorage(): LLMProviderConfig {
-        return {
-            baseUrl: localStorage.getItem('openai_base_url') || 'https://api.openai.com/v1',
-            apiKey: localStorage.getItem('openai_api_key') || '',
-            modelId: localStorage.getItem('openai_model_id') || 'gpt-4o',
-            temperature: parseFloat(localStorage.getItem('openai_temperature') || '0.8'),
-            frequency_penalty: parseFloat(localStorage.getItem('openai_frequency_penalty') || '0.6'),
-            presence_penalty: parseFloat(localStorage.getItem('openai_presence_penalty') || '0.4'),
-            inputPrice: parseFloat(localStorage.getItem('openai_input_price') || '0'),
-            outputPrice: parseFloat(localStorage.getItem('openai_output_price') || '0')
-        };
-    }
 
     async *generateContentStream(
         contents: LLMContent[],

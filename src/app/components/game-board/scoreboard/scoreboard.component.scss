@@ -1,0 +1,40 @@
+.scoreboard {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 15px;
+
+    @media (min-width: 1024px) {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+}
+
+.mission-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #21262d;
+    border: 2px solid #30363d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9em;
+    color: #c9d1d9;
+}
+
+.mission-circle.success {
+    background: #238636;
+    border-color: #58a6ff;
+}
+
+.mission-circle.fail {
+    background: #da3633;
+    border-color: #f85149;
+}
+
+.mission-circle.current {
+    border-color: #d29922;
+    box-shadow: 0 0 10px #d29922;
+}

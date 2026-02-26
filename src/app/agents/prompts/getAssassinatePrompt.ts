@@ -1,39 +1,26 @@
 import { AssassinContext } from '../../models/agent.interface';
 
-export function getAssassinatePrompt(context: AssassinContext, gameHistoryText: string): string[] {
+export function getAssassinatePrompt(context: AssassinContext): string {
     const goodPlayersStr = context.goodPlayerIds
         .map(id => `${context.playerNames[id] || id}(${id})`)
         .join(', ');
 
     return [
-        `=== FULL GAME HISTORY ===`,
-        gameHistoryText,
-        `========================`,
+        `[ASSASSINATION: FINAL CHOICE]`,
+        `The Good team has won 3 missions. This is your FINAL CHANCE to steal victory!`,
+        `You must identify and assassinate MERLIN from the following players: ${goodPlayersStr}.`,
         ``,
-        `Good team won 3 missions. This is the ASSASSINATION phase — your last chance to win!`,
-        `You must identify and kill MERLIN from: ${goodPlayersStr}.`,
+        `### TARGET ANALYSIS STRATEGY:`,
+        `- **The Quiet Observer**: Merlin often knows everything but says little to avoid detection. Look for players who voted perfectly but didn't lead the charge.`,
+        `- **The Decoy (Percival)**: Good players like Percival will act loud, confident, and "Merlin-like" to protect the real Merlin. Don't be fooled by obvious bravado.`,
+        `- **Voting Patterns**: Review who consistently supported the successful teams before they were confirmed as "Safe."`,
+        `- **Recent Behavior**: In the final discussion, did anyone suddenly act "confused" or try to shift credit? That might be Merlin trying to hide.`,
         ``,
-        `Analyze the FULL game history to find Merlin.`,
-        `Consider the following tactical concepts:`,
-        `- Merlin knows all Evil players from the start but must hide this fact.`,
-        `- A good Merlin might act confused, play passively, or even defend Evil players to avoid Assassin's suspicion.`,
-        `- The most loud and aggressive Good player leading the team is often NOT Merlin, but an expendable Good player like Percival or a Loyal Servant.`,
-        `- Look for someone whose votes and team choices were suspiciously accurate when it mattered most, without drawing too much attention.`,
-        `- ⚠️ CRITICAL: Good players will actively try to draw your fire by claiming credit or acting like they had secret knowledge! If someone is too obviously bragging about knowing who is Evil, THEY ARE LIKELY A DECOY (Percival or Loyal Servant), not Merlin!`,
-        ``,
-        `Analyze EACH Good player below. For each, explain why they might or might not be Merlin:`,
+        `Analyze EACH candidate below and explain the likelihood of them being Merlin:`,
         ...context.goodPlayerIds.map(id =>
-            `- ${context.playerNames[id] || id} (${id}): evaluate their behavior throughout the game.`
+            `- **${context.playerNames[id] || id} (${id})**: evaluate their game-long behavior and recent discussion.`
         ),
         ``,
-        `After your analysis, choose the most likely Merlin.`,
-        `Respond in strict JSON:`,
-        `{`,
-        `  "self_check": "...",`,
-        `  "reasoning": "Comprehensive analysis of all good players...",`,
-        `  "action": {`,
-        `    "targetId": "pX"`,
-        `  }`,
-        `}`
-    ];
+        `FINAL ACTION: State your definitive choice for Merlin. If you kill Merlin, EVIL WINS.`
+    ].join('\n');
 }

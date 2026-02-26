@@ -17,7 +17,7 @@ export const en = {
         languageName: 'English',
         bulkApplyLabel: 'Batch Apply Config:',
         bulkApplyBtn: 'Apply to all AI',
-        random: 'Random',
+        random: 'RNG Test',
         llm: 'AI (LLM)',
         chooseConfig: '-- Select Config --',
         roles: 'Roles',
@@ -121,7 +121,9 @@ export const en = {
         failsCount: 'Fails: {{count}}',
         missionReview: 'Mission Review',
         gameDebrief: 'Game Debrief',
-        gameOver: 'Game Over'
+        gameOver: 'Game Over',
+        assassinTarget: 'Assassination Target',
+        phaseAssassination: 'Assassination Phase'
     },
     gameEngine: {
         ladyClaimGood: 'They claim to be Good.',
@@ -146,11 +148,12 @@ export const en = {
         merlinSurvived: 'Target was not Merlin. Good wins!',
         goodWins: 'Good team completed 3 missions or Assassin failed.',
         evilWins: 'Evil team failed 3 missions or Assassin succeeded.',
-        forcedPass: '{{name}} forced to pass (2-speech limit as last speaker).',
-        skippedSpeak: '{{name}} skipped speaking',
+        forcedPass: '{{name}} conclude my remarks for this round (2-speech limit as last speaker).',
+        skippedSpeak: '{{name}} conclude remarks for this round',
         assassinTarget: 'Assassin {{assassin}} chose target {{target}}',
         assassinRevealed: '⚠️ Good team completed 3 missions! Assassin identity revealed: {{name}}. Entering pre-assassination discussion.',
-        assassinDiscussionPhase: 'Pre-Assassination Discussion'
+        assassinDiscussionPhase: 'Pre-Assassination Discussion',
+        finishedSpeak: '{{name}} conclude remarks for this round',
     },
 
     settings: {
@@ -175,7 +178,18 @@ export const en = {
         testError: '❌ Connection Error: {{msg}}',
         temperature: 'Temperature:',
         freqPenalty: 'Freq Penalty:',
-        presPenalty: 'Pres Penalty:'
+        presPenalty: 'Pres Penalty:',
+        modelPricingTitle: 'Model Pricing & Estimation',
+        modelRates: 'Rates (1M tokens/USD):',
+        modelInput: 'In',
+        modelCached: 'Cached',
+        modelOutput: 'Out',
+        modelEstCost: 'Est. Cost (Per-Agent) ({{input}}K In + {{cached}}K Cached + {{output}}K Out):',
+        modelEstTotal: 'Est. Total (7 Agents):',
+        modelEstDisclaimer: '* Estimates based on typical game length. Actual costs vary.',
+        thinkingNote: '💡 System uses guided CoT in prompts. Recommended to set native thinking to Minimal to save costs and avoid logic conflicts.',
+        customInputPrice: 'Input Price (1M tokens/USD):',
+        customOutputPrice: 'Output Price (1M tokens/USD):'
     },
     roles: {
         MERLIN: 'Merlin',
@@ -199,7 +213,20 @@ export const en = {
     },
     agent: {
         night: {
-            noInfo: '⚠️ You have no night phase intel. You are {{role}}.'
+            noInfo: '⚠️ You have no night phase intel. You are {{role}}.',
+            labels: {
+                good: 'Good',
+                evil: 'Evil',
+                merlin_or_morgana: 'Merlin or Morgana',
+                good_or_mordred: 'Good or Mordred',
+                evil_ally: 'Evil Ally',
+                good_or_oberon: 'Good or Oberon',
+                unknown: 'Unknown'
+            },
+            intel_summary: 'Summary: {{info}}',
+            merlin_summary: "There is 1x Mordred in the 'Good or Mordred' range.",
+            percival_summary: "One is Merlin and one is Morgana in the 'Merlin or Morgana' range.",
+            evil_summary: "There is 1x Oberon in the 'Good or Oberon' range."
         },
         mission: {
             goodSuccessReasoning: 'As a Good player, I must play Success.',
@@ -229,6 +256,14 @@ export const en = {
         },
         ruleOverride: {
             round4TwoFails: '\n🚨🚨🚨 [RULE OVERRIDE] ROUND 4 REQUIRES TWO (2) FAIL CARDS TO FAIL THE MISSION! ONE FAIL CARD WILL RESULT IN A MISSION SUCCESS! 🚨🚨🚨\n'
+        },
+        signal: {
+            receiver: '> *(Private Note: you found {{sender}} pass you a **{{signal}}** signal)*',
+            observer: '> *(Private Note: you found {{sender}} pass a **{{signal}}** signal to {{target}})*',
+            sender: '> *(Private Note: you pass a **{{signal}}** signal to {{target}}, and he/she {{status}} received{{noticed}})*',
+            received: 'seems to have',
+            notReceived: 'seems NOT to have',
+            noticed: ', and these people seem to have noticed it: {{observers}}'
         }
     },
     namePool: [

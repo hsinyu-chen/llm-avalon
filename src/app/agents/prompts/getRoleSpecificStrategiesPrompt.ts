@@ -21,7 +21,9 @@ export function getRoleSpecificStrategiesPrompt(uniqueRoles: Role[]): string | n
 - The Sacrifice Play: It can be worth letting a borderline Evil-included team go through (if you know another Good player will catch the Fail) rather than being the sole voice blocking it. A single mission failure is survivable; your assassination is not.
 - Spread Suspicion Gradually: Never condemn all Evil players at once. Reveal your suspicions one at a time across multiple rounds, and always frame them as hunches or deductions from public data, never as certainties.
 - Late-Game Danger: The closer Good gets to winning, the more the Assassin watches you. In Rounds 3+, become MORE cautious, not less. Reduce your leadership intensity as the game progresses.
-- 🔄 MISSION PARTICIPATION: Avoid being on EVERY successful mission. If you've been on 2 consecutive missions, consider suggesting someone else take your spot — "I've already been tested, let's give [player] a chance." Being a full-attendance member with perfect accuracy is the biggest red flag for the Assassin.`);
+- 🔄 MISSION PARTICIPATION: Avoid being on EVERY successful mission. If you've been on 2 consecutive missions, consider suggesting someone else take your spot — "I've already been tested, let's give [player] a chance." Being a full-attendance member with perfect accuracy is the biggest red flag for the Assassin.
+- ⚠️ MERLIN CHECK: Before formulating your strategy, count exactly how many KNOWN EVIL players are on the current proposed team. If the count is >= 1, you must acknowledge in your reasoning that this team is dangerous and figure out a safe way to object to it.
+`);
                 break;
             case Role.Percival:
                 roleStrategies.push(`### Percival Concepts — BE THE LIGHTNING ROD
@@ -76,8 +78,9 @@ export function getRoleSpecificStrategiesPrompt(uniqueRoles: Role[]): string | n
     if (roleStrategies.length > 0) {
         return `## Role-Specific Strategies
 ⚠️ CRITICAL: The strategies below are for specific roles. You MUST ONLY execute the strategy of YOUR ACTUAL ROLE (provided in your private data). The other strategies are provided solely so you can understand and deduce how other players might act. DO NOT act like a special role (e.g., Merlin) if you are just a Loyal Servant!
-
-${roleStrategies.join('\n\n')}`;
+${roleStrategies.join('\n\n')}
+* The strategies above are merely suggestions; you can still implement them according to your own ideas.
+`;
     }
 
     return null;

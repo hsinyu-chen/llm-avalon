@@ -1,0 +1,11 @@
+<div class="scoreboard">
+    @for (m of missionTrack(); track $index) {
+    <div class="mission-circle" [ngClass]="{
+    'success': m === 'SUCCESS',
+    'fail': m === 'FAIL',
+    'current': currentRound() === $index + 1
+    }">
+        R{{$index + 1}}
+    </div>
+    }
+</div>

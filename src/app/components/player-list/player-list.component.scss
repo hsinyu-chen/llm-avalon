@@ -1,6 +1,6 @@
 .player-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 15px;
     margin: 10px;
 
@@ -46,10 +46,12 @@
 
 .player-card.team-good {
     border-bottom: 4px solid #58a6ff;
+    background: rgba(88, 166, 255, 0.05);
 }
 
 .player-card.team-evil {
     border-bottom: 4px solid #f85149;
+    background: rgba(248, 81, 73, 0.05);
 }
 
 .leader-badge {
@@ -66,7 +68,52 @@
 
 .role {
     font-size: 0.85em;
-    opacity: 0.8;
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-top: 4px;
+    width: 100%;
+    box-sizing: border-box;
+
+    &.team-good {
+        color: #58a6ff;
+        background: rgba(88, 166, 255, 0.1);
+        border: 1px solid rgba(88, 166, 255, 0.3);
+    }
+
+    &.team-evil {
+        color: #f85149;
+        background: rgba(248, 81, 73, 0.1);
+        border: 1px solid rgba(248, 81, 73, 0.3);
+    }
+}
+
+.token-usage-mini {
+    margin-top: 8px;
+    background: rgba(97, 187, 97, 0.1);
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border: 1px solid rgba(97, 187, 97, 0.2);
+
+    .cost {
+        font-size: 0.85em;
+        color: #61bb61;
+        font-weight: bold;
+    }
+
+    .tokens {
+        font-size: 0.7em;
+        color: #8b949e;
+        white-space: nowrap;
+    }
+}
+
+.id {
+    font-size: 0.7em;
+    color: #8b949e;
 }
 
 .model-badge {
@@ -79,11 +126,6 @@
     display: inline-block;
 }
 
-.id {
-    font-size: 0.7em;
-    color: #8b949e;
-}
-
 .thinking-badge {
     font-size: 0.7em;
     color: #58a6ff;
@@ -93,6 +135,7 @@
     justify-content: center;
     gap: 4px;
     animation: pulse 1.5s infinite;
+    height: 12px;
 }
 
 .spinner {

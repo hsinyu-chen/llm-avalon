@@ -116,28 +116,73 @@
 }
 
 .form-group {
-    margin-bottom: 20px;
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
 
     label {
-        display: block;
-        margin-bottom: 8px;
+        margin: 0;
         color: #8b949e;
         font-size: 0.9em;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     input,
     select {
         width: 100%;
+        box-sizing: border-box;
         padding: 10px;
         background: #0d1117;
         border: 1px solid #30363d;
         border-radius: 6px;
         color: white;
-        font-size: 1em;
+        font-size: 0.95em;
 
         &:focus {
             border-color: #58a6ff;
             outline: none;
+        }
+    }
+}
+
+.form-grid {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 16px;
+
+    &.columns-2 {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    &.columns-3 {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .form-group-vertical {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+
+        label {
+            color: #8b949e;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px 10px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: white;
+            font-size: 0.9em;
         }
     }
 }
@@ -200,6 +245,69 @@
         display: flex;
         justify-content: flex-end;
         gap: 12px;
+    }
+}
+
+.config-editor {
+    .portal-wrapper {
+        margin-bottom: 20px;
+    }
+
+    .pricing-info {
+        margin-top: 20px;
+        margin-bottom: 20px;
+        padding: 16px;
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        color: #c9d1d9;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+
+        h4 {
+            margin: 0 0 12px 0;
+            font-size: 1em;
+            color: #58a6ff;
+            font-weight: 600;
+        }
+
+        p {
+            margin: 6px 0;
+            font-size: 0.85em;
+            line-height: 1.5;
+        }
+
+        .rates {
+            color: #8b949e;
+        }
+
+        .estimate {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #30363d;
+
+            &.total {
+                margin-top: 8px;
+                background: rgba(88, 166, 255, 0.05);
+                padding: 8px 12px;
+                border-radius: 6px;
+                border: 1px solid rgba(88, 166, 255, 0.1);
+            }
+        }
+
+        .cost-range {
+            color: #7ee787;
+            font-size: 1.2em;
+            display: inline-block;
+            margin-top: 4px;
+        }
+
+        .disclaimer {
+            display: block;
+            margin-top: 12px;
+            font-size: 0.75em;
+            color: #6e7681;
+            font-style: italic;
+        }
     }
 }
 

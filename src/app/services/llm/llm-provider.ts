@@ -49,6 +49,9 @@ export interface LLMGenerateConfig {
     tools?: object[];
     toolConfig?: object;
     intent?: string;
+    maxOutputTokens?: number;
+    frequency_penalty?: number;
+    presence_penalty?: number;
     signal?: AbortSignal;
 }
 
@@ -169,16 +172,7 @@ export interface LLMProvider {
      */
     init(config: LLMProviderConfig): void;
 
-    /**
-     * Persists the provider's configuration.
-     * @param config The configuration to save.
-     */
-    saveConfig(config: LLMProviderConfig): void;
 
-    /**
-     * Reads the provider's configuration from storage.
-     */
-    getConfigFromStorage(): LLMProviderConfig;
 
     /**
      * Generate content with streaming response.
@@ -304,16 +298,16 @@ export interface LLMProviderConfig {
     modelId?: string;
     /** Base URL for the API endpoint (for self-hosted providers) */
     baseUrl?: string;
-    /** Thinking level for story context */
-    thinkingLevelStory?: string;
-    /** Thinking level for general context */
-    thinkingLevelGeneral?: string;
+    /** Thinking level for model generation */
+    thinkingLevel?: string;
     /** Temperature setting for generation */
     temperature?: number;
     /** Frequency penalty */
     frequency_penalty?: number;
     /** Presence penalty */
     presence_penalty?: number;
+    /** Max output tokens */
+    maxOutputTokens?: number;
     /** Whether to enable context caching (Gemini-specific) */
     enableCache?: boolean;
     /** Custom input token price (per 1M) */

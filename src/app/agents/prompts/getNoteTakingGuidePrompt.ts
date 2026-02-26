@@ -40,6 +40,9 @@ export function getNoteTakingGuide(myRole: Role): string {
 
     return `## Note-Taking Guide
 
+### 📝 Formatting Rules (CRITICAL)
+- **Markdown Only**: Always use Markdown headers, bolding, and lists for structure.
+
 Your PRIVATE NOTE is your ONLY memory across rounds. Structure your note with these sections:
 
 ### 1. [Player Analysis]

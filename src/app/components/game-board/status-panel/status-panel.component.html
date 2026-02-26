@@ -1,0 +1,23 @@
+<div class="status-panel">
+    <div class="status-item">
+        <span class="label">{{ 'board.round' | translate : {round: ''} }}</span>
+        <span class="value">{{ round() }} / 5</span>
+    </div>
+    <div class="status-item">
+        <span class="label">{{ 'board.failedVotes' | translate }}</span>
+        <span class="value">{{ failedVotes() }} / 5</span>
+    </div>
+    <div class="status-item current-phase full-width">
+        <span class="label">{{ 'board.currentPhase' | translate }}</span>
+        <span class="value">{{ phase() }}</span>
+    </div>
+    <div class="status-item token-stats full-width">
+        <div class="token-main">
+            💰 ${{ tokenUsage().totalCost | number:'1.4-6' }}
+        </div>
+        <div class="token-details">
+            Input: {{ tokenUsage().promptTokens }} | Cached: {{ tokenUsage().cachedTokens }} | Output: {{
+            tokenUsage().completionTokens }}
+        </div>
+    </div>
+</div>

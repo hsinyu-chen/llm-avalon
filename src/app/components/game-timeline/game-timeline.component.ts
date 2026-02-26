@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { GameEvent, GamePhase } from '../../models/game-event';
 import { TranslatePipe } from '../../i18n/translate.pipe';
 import { I18nService } from '../../i18n/i18n.service';
+import { GameEngineService } from '../../services/game-engine.service';
 
 interface RoundGroup {
     round: number;
@@ -21,13 +22,26 @@ interface RoundGroup {
 export class GameTimelineComponent {
     events = input.required<GameEvent[]>();
     playerRoles = input<Record<string, { role: string; team: string }>>();
+    perspectiveId = input<string | null>(null);
+    isGodView = input<boolean>(true);
+
     private i18n = inject(I18nService);
+    private gameEngine = inject(GameEngineService);
+
+    showGodView = computed(() => this.isGodView() || !this.perspectiveId());
+
+    getPlayerName(id: string): string {
+        const p = this.gameEngine.state().players.find(p => p.agent.id === id);
+        return p ? p.agent.name : id;
+    }
 
     autoScrollEnabled = signal(true);
     scrollFrame = viewChild<ElementRef<HTMLDivElement>>('scrollFrame');
 
     selectedPromptText = signal<string | null>(null);
+    selectedRetryLogs = signal<string[] | null>(null);
     promptDialog = viewChild<ElementRef<HTMLDialogElement>>('promptDialog');
+    retryLogsDialog = viewChild<ElementRef<HTMLDialogElement>>('retryLogsDialog');
 
     openPromptDialog(text: string) {
         this.selectedPromptText.set(text);
@@ -39,9 +53,22 @@ export class GameTimelineComponent {
         this.selectedPromptText.set(null);
     }
 
+    openRetryLogsDialog(logs: string[]) {
+        this.selectedRetryLogs.set(logs);
+        this.retryLogsDialog()?.nativeElement.showModal();
+    }
+
+    closeRetryLogsDialog() {
+        this.retryLogsDialog()?.nativeElement.close();
+        this.selectedRetryLogs.set(null);
+    }
+
     onDialogClick(event: MouseEvent) {
         if (event.target === this.promptDialog()?.nativeElement) {
             this.closePromptDialog();
+        }
+        if (event.target === this.retryLogsDialog()?.nativeElement) {
+            this.closeRetryLogsDialog();
         }
     }
 
@@ -64,6 +91,10 @@ export class GameTimelineComponent {
         });
     }
 
+    onRetry(event: GameEvent) {
+        this.gameEngine.retryEvent(event);
+    }
+
     onUserInteraction() {
         if (this.autoScrollEnabled()) {
             this.autoScrollEnabled.set(false);
@@ -83,23 +114,26 @@ export class GameTimelineComponent {
 
     groupedEvents = computed(() => {
         const rawEvents = this.events();
-        const groups: RoundGroup[] = [];
-
         if (rawEvents.length === 0) return [];
 
-        let currentGroup: RoundGroup | null = null;
+        // Map rounds to groups to ensure uniqueness
+        const groupMap = new Map<number, RoundGroup>();
+        const orderedRounds: number[] = [];
 
+        let lastKnownRound = 1;
         rawEvents.forEach(e => {
-            const eRound = ('round' in e && e.round !== undefined) ? e.round : (currentGroup?.round || 1);
-            const r = eRound;
+            const eRound = ('round' in e && e.round !== undefined) ? (e.round as number) : lastKnownRound;
+            lastKnownRound = eRound;
 
-            if (!currentGroup || currentGroup.round !== r) {
-                currentGroup = { round: r, events: [], isOpen: false };
-                groups.push(currentGroup);
+            if (!groupMap.has(eRound)) {
+                const group = { round: eRound, events: [], isOpen: false };
+                groupMap.set(eRound, group);
+                orderedRounds.push(eRound);
             }
-            currentGroup.events.push(e);
+            groupMap.get(eRound)!.events.push(e);
         });
 
+        const groups = orderedRounds.map(r => groupMap.get(r)!);
         if (groups.length > 0) {
             groups[groups.length - 1].isOpen = true;
         }
@@ -134,5 +168,20 @@ export class GameTimelineComponent {
 
     getPlayerRoleInfo(name: string) {
         return this.playerRoles()?.[name];
+    }
+
+    shouldShowNote(event: GameEvent, noteKey: string): boolean {
+        const perspective = this.perspectiveId();
+        if (perspective) {
+            return noteKey === perspective;
+        }
+
+        if (!this.showGodView()) return false;
+
+        // In God View (Global/Spectator Mode):
+        // Only show the sender's note. For signals, the sender's note is a "Master Note"
+        // that already includes the target and all observers who detected it.
+        const senderId = (event as any).playerId || (event as any).leaderId;
+        return noteKey === senderId;
     }
 }

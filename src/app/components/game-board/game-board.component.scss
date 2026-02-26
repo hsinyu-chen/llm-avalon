@@ -141,93 +141,6 @@
     }
 }
 
-.scoreboard {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-bottom: 15px;
-
-    @media (min-width: 1024px) {
-        justify-content: flex-start;
-        flex-wrap: wrap;
-    }
-}
-
-.mission-circle {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: #21262d;
-    border: 2px solid #30363d;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 0.9em;
-}
-
-.mission-circle.success {
-    background: #238636;
-    border-color: #58a6ff;
-}
-
-.mission-circle.fail {
-    background: #da3633;
-    border-color: #f85149;
-}
-
-.mission-circle.current {
-    border-color: #d29922;
-    box-shadow: 0 0 10px #d29922;
-}
-
-.status-panel {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    background: #161b22;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 15px;
-    border: 1px solid #30363d;
-
-    .status-item {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        font-size: 0.85em;
-
-        &.full-width {
-            grid-column: span 2;
-        }
-
-        .label {
-            color: #8b949e;
-            font-size: 0.8em;
-            text-transform: uppercase;
-        }
-
-        .value {
-            color: #c9d1d9;
-            font-weight: bold;
-        }
-    }
-}
-
-.current-phase {
-    .value {
-        color: #d29922;
-    }
-}
-
-.token-stats {
-    color: #61bb61;
-    cursor: help;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
 
 .action-panel {
     background: #161b22;
@@ -406,6 +319,7 @@
 
 .info-section {
     margin-bottom: 25px;
+    white-space: pre-wrap;
 }
 
 .section-label {
@@ -428,6 +342,24 @@
     padding: 10px;
     border-radius: 6px;
     border: 1px solid #30363d;
+}
+
+.assessment-text,
+.strategy-text {
+    background: #1c2128;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #30363d;
+    white-space: pre-wrap;
+    font-size: 0.95em;
+}
+
+.assessment-text {
+    border-left: 4px solid #58a6ff;
+}
+
+.strategy-text {
+    border-left: 4px solid #3fb950;
 }
 
 .token-grid {
@@ -505,5 +437,28 @@
         &:active {
             transform: translateY(0);
         }
+    }
+}
+
+.spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid #58a6ff;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+
+    &.mini {
+        width: 10px;
+        height: 10px;
+        border-width: 1px;
+        display: inline-block;
+        vertical-align: middle;
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
     }
 }

@@ -25,8 +25,6 @@ export function getUpdateNotePrompt(context: NoteContext, myRole: Role, note: st
             ? `⚠️ WARNING ON DEDUCTIONS: Aside from your initial Night Phase Intel, EVERY deduction you make about other players is an UNCERTAIN INFERENCE, not a confirmed fact. Do not treat your guesses as 100% truth. Distinguish between hard facts (e.g. "Round 1 failed with 1 fail") and your subjective guesses (e.g. "I suspect P2 is Evil").`
             : `⚠️ CRITICAL: You received NO Night Phase Intel at the start of the game. EVERY single deduction you make is an UNCERTAIN INFERENCE. Do NOT invent system notifications or hallucinate "Confirmed Evil" allies. Distinguish between hard facts (e.g. "Round 1 failed with 1 fail") and your subjective guesses. Use tags like (Guess) or (Unconfirmed), and DO NOT use "Confirmed".`,
         getNoteTakingGuide(myRole),
-        `Write in ${i18n.translate('setup.languageName')}.`,
-        `Respond in strict JSON: {"newNote": "your merged note in ${i18n.translate('setup.languageName')}"}`,
-        `⚠️ CRITICAL: The "newNote" field MUST be written in ${i18n.translate('setup.languageName')}.`
+        `Write the note content in Markdown format and use the language: ${i18n.translate('setup.languageName')}.`
     ];
 }

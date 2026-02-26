@@ -8,11 +8,21 @@ import { ROLE_META } from '../../models/role';
 import { GameEvent, GamePhase } from '../../models/game-event';
 import { TranslatePipe } from '../../i18n/translate.pipe';
 import { I18nService } from '../../i18n/i18n.service';
+import { ScoreboardComponent } from './scoreboard/scoreboard.component';
+import { StatusPanelComponent } from './status-panel/status-panel.component';
 
 @Component({
     selector: 'app-game-board',
     standalone: true,
-    imports: [PlayerListComponent, GameTimelineComponent, NgClass, TranslatePipe, DecimalPipe],
+    imports: [
+        PlayerListComponent,
+        GameTimelineComponent,
+        ScoreboardComponent,
+        StatusPanelComponent,
+        NgClass,
+        TranslatePipe,
+        DecimalPipe
+    ],
     templateUrl: './game-board.component.html',
     styleUrl: './game-board.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -27,7 +37,6 @@ export class GameBoardComponent {
     currentRound = this.engine.currentRound;
 
     selectedPlayer = signal<PlayerState | null>(null);
-    showModal = signal(false);
     copySuccess = signal(false);
     isDesktop = signal(window.innerWidth >= 1024);
 
@@ -53,7 +62,7 @@ export class GameBoardComponent {
     constructor() {
         effect(() => {
             if (this.state().phase === GamePhase.GameOver) {
-                this.showModal.set(true);
+                // Done: Handled by winner-banner in template
             }
         });
 
@@ -78,23 +87,10 @@ export class GameBoardComponent {
     });
 
 
-    missionTrack = computed(() => {
-        const track = Array(5).fill('PENDING');
-        const missions = this.state().missions;
-        missions.forEach((m, i) => {
-            track[i] = m.succeeded ? 'SUCCESS' : 'FAIL';
-        });
-        return track;
-    });
-
     reset() {
         this.engine.reset();
-        this.showModal.set(false);
     }
 
-    resumeGame() {
-        this.engine.resumeGame();
-    }
 
     async copyGameLog() {
         const s = this.state();
@@ -133,7 +129,10 @@ export class GameBoardComponent {
         lines.push('');
 
         lines.push(`## Timeline`);
-        const allEvents = s.events || [];
+        const allEvents = (s.events || []).filter(e => {
+            if (e.type === 'SYSTEM' || e.type === 'PHASE_CHANGE' || e.type === 'ROUND_START' || e.type === 'GAME_OVER') return true;
+            return e.status === 'success';
+        });
         let currentRound = 0;
         for (const e of allEvents) {
             const eRound = ('round' in e && e.round !== undefined) ? e.round : currentRound;
@@ -159,16 +158,41 @@ export class GameBoardComponent {
 
     private formatEventMarkdown(e: GameEvent): string {
         switch (e.type) {
-            case 'PHASE_CHANGE':
-                return `\n**── ${e.phase} ──**`;
+            case 'PHASE_CHANGE': {
+                const phaseNames: Record<string, string> = {
+                    [GamePhase.Night]: this.i18n.translate('board.currentPhase') + ' ' + GamePhase.Night,
+                    [GamePhase.TeamProposal]: this.i18n.translate('board.proposeBtn'),
+                    [GamePhase.Discussion]: this.i18n.translate('board.chat'),
+                    [GamePhase.Vote]: this.i18n.translate('timeline.vote'),
+                    [GamePhase.Mission]: this.i18n.translate('timeline.missionLabel'),
+                    [GamePhase.MissionDebrief]: this.i18n.translate('timeline.missionReview'),
+                    [GamePhase.AssassinationDiscussion]: this.i18n.translate('engine.assassinDiscussionPhase'),
+                    [GamePhase.Assassination]: this.i18n.translate('timeline.phaseAssassination'),
+                    [GamePhase.GameDebrief]: this.i18n.translate('timeline.gameDebrief'),
+                    [GamePhase.GameOver]: this.i18n.translate('timeline.gameOver')
+                };
+                const phaseName = phaseNames[e.phase] || e.phase;
+                return `\n**── ${phaseName} ──**`;
+            }
+            case 'ASSASSINATION': {
+                const thoughts: string[] = [];
+                if (e.reasoning) thoughts.push(e.reasoning);
+                const assassinText = this.i18n.translate('board.assassinateBtn');
+                let line = `**${e.playerName}** ${assassinText}=> **${e.targetName}**`;
+                if (thoughts.length > 0) {
+                    line += `\n> *COT: ${thoughts.join(' | ')}*`;
+                }
+                return line;
+            }
             case 'DISCUSSION': {
                 const thoughts: string[] = [];
-                if (e.self_check) thoughts.push(e.self_check);
                 if (e.reasoning) thoughts.push(e.reasoning);
-
                 let line = `> **${e.playerName}**: _${e.message || '(PASS)'}_\n`;
                 if (thoughts.length > 0) {
-                    line += `> *COT: ${thoughts.join(' | ')}*`;
+                    line += `\n> *COT: ${thoughts.join(' | ')}*`;
+                }
+                if (e.privateNotes && e.privateNotes[e.playerId]) {
+                    line += `\n> *${e.privateNotes[e.playerId]}*`;
                 }
                 return line;
             }
@@ -176,8 +200,9 @@ export class GameBoardComponent {
                 return `👑 **${e.leaderName}** proposed: ${e.teamNames.join(', ')}${e.reasoning ? ` (*${e.reasoning}*)` : ''}`;
             case 'VOTE_RESULTS': {
                 const result = e.passed ? '✅ PASSED' : '❌ REJECTED';
+                const team = e.teamNames ? ` [${e.teamNames.join(', ')}]` : '';
                 const votes = e.votes.map(v => `${v.name}:${v.approve ? '⚪' : '⚫'}${v.reasoning ? ` (*${v.reasoning}*)` : ''}`).join(' ');
-                return `🗳 ${result} — ${votes}`;
+                return `🗳 ${result}${team} — ${votes}`;
             }
             case 'MISSION_OUTCOME': {
                 const icon = e.succeeded ? '🏆' : '💀';
@@ -188,12 +213,17 @@ export class GameBoardComponent {
                 return res;
             }
             case 'SYSTEM':
-                if (e.message.includes('跳過發言') || e.message.includes('skipped')) return '';
+                if (e.subType === 'PLAYER_PASS' || e.subType === 'PLAYER_FINISH' || e.subType === 'FORCED_PASS') return '';
                 return `ℹ️ ${e.message}`;
             case 'GAME_OVER':
                 return `\n🏁 **GAME OVER** — ${e.winner === 'GOOD' ? 'Good wins' : 'Evil wins'}: ${e.reason}`;
-            case 'GAME_DEBRIEF':
-                return `💬 **${e.playerName} (${this.i18n.translate('board.debrief')})**: ${e.message}`;
+            case 'GAME_DEBRIEF': {
+                let res = `💬 **${e.playerName} (${this.i18n.translate('board.debrief')})**: ${e.message}`;
+                if (e.privateNotes && e.privateNotes[e.playerId]) {
+                    res += `\n> *${e.privateNotes[e.playerId]}*`;
+                }
+                return res;
+            }
             default:
                 return '';
         }

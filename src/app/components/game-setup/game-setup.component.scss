@@ -59,6 +59,40 @@
             border-radius: 4px;
         }
     }
+
+    .total-cost-footer {
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid #30363d;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+
+        .cost-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            .label {
+                font-size: 0.9em;
+                color: #8b949e;
+                font-weight: 500;
+            }
+
+            .value {
+                color: #7ee787;
+                font-size: 1.1em;
+                font-weight: bold;
+            }
+        }
+
+        .disclaimer {
+            font-size: 0.75em;
+            color: #8b949e;
+            font-style: italic;
+            text-align: right;
+        }
+    }
 }
 
 .player-agent-grid {
@@ -68,7 +102,8 @@
 }
 
 .player-agent-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: 120px 100px 1fr;
     align-items: center;
     gap: 12px;
     background: #161b22;
@@ -76,30 +111,51 @@
     border-radius: 6px;
 
     .name-input {
-        width: 100px;
+        width: 100%; // Fill grid column
         padding: 5px;
         background: #0d1117;
         color: white;
         border: 1px solid #30363d;
         border-radius: 4px;
-        font-weight: bold;
+        box-sizing: border-box;
+    }
+
+    .llm-select-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+
+        select {
+            flex: 1;
+            min-width: 0;
+            width: auto;
+        }
+
+        .cost-est {
+            color: #7ee787;
+            font-size: 0.8em;
+            white-space: nowrap;
+            background: rgba(126, 231, 135, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
     }
 
     select {
+        width: 100%;
         padding: 5px;
         background: #0d1117;
         color: white;
         border: 1px solid #30363d;
         border-radius: 4px;
-
-        &:first-of-type {
-            width: 130px;
-        }
-
-        &:last-of-type {
-            flex: 1;
-        }
+        box-sizing: border-box;
     }
+}
+
+.summary-item.cost {
+    border-left: 4px solid #7ee787;
 }
 
 .roles-section {
@@ -223,7 +279,6 @@
 }
 
 .summary-item .label {
-    font-size: 0.9em;
     opacity: 0.7;
     display: block;
 }
@@ -234,7 +289,7 @@
 }
 
 .summary-item .details {
-    font-size: 0.8em;
+    font-size: 0.9em;
     color: #8b949e;
     margin-top: 4px;
 }

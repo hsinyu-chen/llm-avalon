@@ -25,6 +25,10 @@ export interface BaseGameContext {
     rolesInGame: Role[];
     /** Whether Round 4 requires 2 fails (depends on player count >= 7) */
     twoFailsRequiredInRound4: boolean;
+    /** Total number of players in the game */
+    playerCount: number;
+    /** Whether the agent has already used a hidden signal in this mission round */
+    hasSignaledThisRound: boolean;
 }
 
 // =============================================================================
@@ -33,12 +37,14 @@ export interface BaseGameContext {
 
 export interface NightPhaseInfo {
     myRole: Role;
-    visiblePlayers: { id: string; name: string; info: string }[];
+    visiblePlayers: { id: string; name: string; info: string; team?: Team }[];
     playerCount: number;
     rolesInGame: Role[];
     options: GameOptions;
     missionSizes: number[];
     twoFailsRequiredInRound4: boolean;
+    intelSummary?: string;
+    hasSignaledThisRound: boolean;
 }
 
 // =============================================================================
@@ -91,7 +97,7 @@ export interface ExcaliburContext extends BaseGameContext {
 
 export interface LadyContext extends BaseGameContext {
     holderId: string;
-    ladyHistory: { holderId: string; targetId: string; claim: string }[];
+    ladyHistory?: { holderId: string; targetId: string; result: boolean; claim?: string }[];
 }
 
 // =============================================================================
@@ -108,11 +114,23 @@ export interface GameReflectionContext {
     isMerlinKilled: boolean;
     playerRoles: { id: string; role: Role }[];
     playerNames: Record<string, string>;
+    allEvents: GameEvent[];
 }
 
 // =============================================================================
 //  Speech Types
 // =============================================================================
+
+export enum SignalType {
+    Wink = 'wink',
+    Frown = 'frown',
+    None = 'none'
+}
+
+export interface HiddenSignal {
+    target: string; // Use 'none' if no signal
+    signal: SignalType; // Use SignalType.None if no signal
+}
 
 export interface SpeechEntry {
     playerId: string;
@@ -124,11 +142,15 @@ export interface SpeechEntry {
 export interface SpeechAct {
     self_check: string;
     reasoning: string;
+    situation_assessment: string;
+    action_strategy: string;
     action: {
         speech: string;
         readyToVote: boolean;
+        pass_hidden_signal: HiddenSignal;
     };
     promptText?: string;
+    retryLogs?: string[];
 }
 
 // =============================================================================
@@ -138,36 +160,48 @@ export interface SpeechAct {
 export interface MissionAction {
     self_check: string;
     reasoning: string;
+    situation_assessment: string;
+    action_strategy: string;
     action: {
         playedMissionResult: boolean;
     };
     promptText?: string;
+    retryLogs?: string[];
 }
 
 export interface VoteAction {
     self_check: string;
     reasoning: string;
+    situation_assessment: string;
+    action_strategy: string;
     action: {
         voteChoice: boolean;
     };
     promptText?: string;
+    retryLogs?: string[];
 }
 export interface ProposeTeamAction {
     self_check: string;
     reasoning: string;
+    situation_assessment: string;
+    action_strategy: string;
     action: {
         teamMemberIds: string[];
     };
     promptText?: string;
+    retryLogs?: string[];
 }
 
 export interface AssassinateAction {
     self_check: string;
     reasoning: string;
+    situation_assessment: string;
+    action_strategy: string;
     action: {
         targetId: string;
     };
     promptText?: string;
+    retryLogs?: string[];
 }
 
 
@@ -191,14 +225,16 @@ export interface IAgent {
     getTokenUsage?(): TokenUsage;
     readonly modelName?: string;
     getIsThinking?(): boolean;
+    getLastAssessment?(): string;
+    getLastStrategy?(): string;
 
     onNightPhase(info: NightPhaseInfo): Promise<void>;
-    proposeTeam(context: TeamProposalContext): Promise<ProposeTeamAction>;
-    vote(context: VoteContext): Promise<VoteAction>;
-    executeMission(context: MissionContext): Promise<MissionAction>;
-    assassinate(context: AssassinContext): Promise<AssassinateAction>;
-    speak(context: SpeakContext, onChunk?: (chunk: string, field: 'speech' | 'reasoning' | 'self_check') => void): Promise<SpeechAct>;
-    shareGameReflection(context: GameReflectionContext, onChunk?: (chunk: string, field: 'reflection' | 'self_check') => void): Promise<{ reflection: string; promptText?: string }>;
+    proposeTeam(context: TeamProposalContext, onChunk?: (chunk: string, field: 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<ProposeTeamAction>;
+    vote(context: VoteContext, onChunk?: (chunk: string, field: 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<VoteAction>;
+    executeMission(context: MissionContext, onChunk?: (chunk: string, field: 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<MissionAction>;
+    assassinate(context: AssassinContext, onChunk?: (chunk: string, field: 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<AssassinateAction>;
+    speak(context: SpeakContext, onChunk?: (chunk: string, field: 'speech' | 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<SpeechAct>;
+    shareGameReflection(context: GameReflectionContext, onChunk?: (chunk: string, field: 'reflection' | 'self_check' | 'reasoning' | 'situation_assessment' | 'action_strategy') => void): Promise<{ reflection: string; self_check?: string; reasoning?: string; situation_assessment?: string; action_strategy?: string; promptText?: string; retryLogs?: string[] }>;
     onSystemMessage(message: string): Promise<void>;
     useExcalibur(context: ExcaliburContext): Promise<string | null>;
     useLadyOfTheLake(context: LadyContext): Promise<string | null>;
