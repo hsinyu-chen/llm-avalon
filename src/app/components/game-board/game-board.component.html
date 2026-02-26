@@ -44,8 +44,8 @@
 
             <div class="timeline-container">
 
-                <app-game-timeline [events]="events()" [playerRoles]="playerRoleMap()"
-                    [perspectiveId]="selectedPlayer()?.agent?.id || null" [isGodView]="!selectedPlayer()">
+                <app-game-timeline [events]="events()" [playerRoles]="playerRoleMap()" [perspectiveId]="null"
+                    [isGodView]="true">
                 </app-game-timeline>
             </div>
         </div>

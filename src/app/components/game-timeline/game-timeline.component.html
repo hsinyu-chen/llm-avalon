@@ -71,11 +71,6 @@
                             @for (note of (event.privateNotes | keyvalue); track note.key) {
                             @if (shouldShowNote(event, note.key)) {
                             <div class="private-note-item">
-                                @if (showGodView() && note.key !== event.playerId) {
-                                <span class="note-recipient-label">
-                                    (To: {{ getPlayerName(note.key) }})
-                                </span>
-                                }
                                 {{ note.value }}
                             </div>
                             }
@@ -126,6 +121,17 @@
                             @if (event.reasoning) { <span>{{ event.reasoning }}</span> }
                             @if (event.status === 'pending' && event.teamIds.length === 0) {
                             <span class="spinner mini"></span>
+                            }
+                        </div>
+                        }
+                        @if (event.privateNotes) {
+                        <div class="private-notes">
+                            @for (note of (event.privateNotes | keyvalue); track note.key) {
+                            @if (shouldShowNote(event, note.key)) {
+                            <div class="private-note-item">
+                                {{ note.value }}
+                            </div>
+                            }
                             }
                         </div>
                         }
@@ -285,6 +291,17 @@
                             }
                         </div>
                         }
+                        @if (event.privateNotes) {
+                        <div class="private-notes">
+                            @for (note of (event.privateNotes | keyvalue); track note.key) {
+                            @if (shouldShowNote(event, note.key)) {
+                            <div class="private-note-item">
+                                {{ note.value }}
+                            </div>
+                            }
+                            }
+                        </div>
+                        }
                     </div>
                 </div>
                 }
@@ -353,13 +370,8 @@
                         @if (event.privateNotes) {
                         <div class="private-notes">
                             @for (note of (event.privateNotes | keyvalue); track note.key) {
-                            @if (showGodView() || note.key === perspectiveId()) {
+                            @if (shouldShowNote(event, note.key)) {
                             <div class="private-note-item">
-                                @if (showGodView()) {
-                                <span class="note-recipient-label">
-                                    (To: {{ getPlayerName(note.key) }})
-                                </span>
-                                }
                                 {{ note.value }}
                             </div>
                             }

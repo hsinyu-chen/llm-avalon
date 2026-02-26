@@ -172,16 +172,8 @@ export class GameTimelineComponent {
     }
 
     shouldShowNote(event: GameEvent, noteKey: string): boolean {
-        const perspective = this.perspectiveId();
-        if (perspective) {
-            return noteKey === perspective;
-        }
-
-        if (!this.showGodView()) return false;
-
-        // In God View (Global/Spectator Mode):
-        // Only show the sender's note. For signals, the sender's note is a "Master Note"
-        // that already includes the target and all observers who detected it.
+        // We now always show God View from the sender's perspective for each event.
+        // This ensures the timeline is consistent and clear.
         const senderId = (event as any).playerId || (event as any).leaderId;
         return noteKey === senderId;
     }

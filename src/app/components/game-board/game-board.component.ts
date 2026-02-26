@@ -197,7 +197,11 @@ export class GameBoardComponent {
                 return line;
             }
             case 'TEAM_PROPOSAL':
-                return `👑 **${e.leaderName}** proposed: ${e.teamNames.join(', ')}${e.reasoning ? ` (*${e.reasoning}*)` : ''}`;
+                let proposalLine = `👑 **${e.leaderName}** proposed: ${e.teamNames.join(', ')}${e.reasoning ? ` (*${e.reasoning}*)` : ''}`;
+                if (e.privateNotes && e.privateNotes[e.leaderId]) {
+                    proposalLine += `\n> *${e.privateNotes[e.leaderId]}*`;
+                }
+                return proposalLine;
             case 'VOTE_RESULTS': {
                 const result = e.passed ? '✅ PASSED' : '❌ REJECTED';
                 const team = e.teamNames ? ` [${e.teamNames.join(', ')}]` : '';
