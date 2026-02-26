@@ -80,7 +80,8 @@ export const en = {
         gameTitle: 'Avalon AI Battle',
         interruptBtn: 'Abort Game',
         resumeScroll: 'Resume Auto-scroll',
-        copyLog: 'Copy Log'
+        copyLog: 'Copy Log',
+        updatingNotes: 'Everyone is updating their notes...'
     },
     playerList: {
         title: 'Players',

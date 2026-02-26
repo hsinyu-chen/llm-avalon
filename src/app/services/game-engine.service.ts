@@ -37,6 +37,7 @@ export class GameEngineService {
     readonly currentRound = computed(() => this._state().currentRound);
     readonly isPaused = computed(() => this._state().isPaused);
     readonly isThinking = computed(() => this._state().isThinking);
+    readonly isUpdatingNotes = computed(() => !!this._state().isUpdatingNotes);
 
     // Flag to prevent multiple parallel loops
     private _isRunningLoop = false;
@@ -85,6 +86,7 @@ export class GameEngineService {
             events: [],
             isPaused: false,
             isThinking: false,
+            isUpdatingNotes: false,
             signaledThisRoundIds: [],
         });
 
@@ -1259,6 +1261,7 @@ export class GameEngineService {
             .filter(s => s !== '');
 
         try {
+            this.updateState({ isUpdatingNotes: true });
             await Promise.all(state.players.map(async p => {
                 await p.agent.updateNote({
                     ...this.buildBaseContext(p.agent.id),
@@ -1276,6 +1279,8 @@ export class GameEngineService {
                 : error.message;
             // Optionally add a non-pausing error to the state
             this._state.update(s => ({ ...s, error: displayMessage }));
+        } finally {
+            this.updateState({ isUpdatingNotes: false });
         }
     }
 
@@ -1437,6 +1442,7 @@ export class GameEngineService {
             events: [],
             isPaused: false,
             isThinking: false,
+            isUpdatingNotes: false,
         });
         this.history.set([]);
     }

@@ -375,6 +375,11 @@
             </div>
         </details>
         }
+        @if (isUpdatingNotes()) {
+        <div class="updating-notes-status">
+            <span class="spinner"></span> {{ 'board.updatingNotes' | translate }}
+        </div>
+        }
     </div>
 
     @if (!autoScrollEnabled()) {

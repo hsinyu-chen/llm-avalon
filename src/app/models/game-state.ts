@@ -57,5 +57,6 @@ export interface GameState {
     events: GameEvent[];
     isPaused?: boolean;
     isThinking?: boolean;
+    isUpdatingNotes?: boolean;
     signaledThisRoundIds?: string[]; // IDs of agents who used a signal this mission round
 }

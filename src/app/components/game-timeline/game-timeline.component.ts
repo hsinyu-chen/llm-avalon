@@ -29,6 +29,7 @@ export class GameTimelineComponent {
     private gameEngine = inject(GameEngineService);
 
     showGodView = computed(() => this.isGodView() || !this.perspectiveId());
+    isUpdatingNotes = this.gameEngine.isUpdatingNotes;
 
     getPlayerName(id: string): string {
         const p = this.gameEngine.state().players.find(p => p.agent.id === id);

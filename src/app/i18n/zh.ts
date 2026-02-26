@@ -82,7 +82,8 @@ export const zhTW = {
         errorBanner: '⚠️ 遊戲中斷: {{error}}',
         resumeBtn: '▶ 繼續遊戲',
         resumeScroll: '恢復自動捲動',
-        copyLog: '複製日誌'
+        copyLog: '複製日誌',
+        updatingNotes: '大家正在更新自己的筆記...'
     },
     playerList: {
         title: '玩家列表',
