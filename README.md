@@ -2,6 +2,10 @@
 
 Welcome to **LlmAvalon**, a project where Large Language Models (LLMs) play the social deduction game *Avalon*. Watch as different AI models converse, deceive, and strategize against each other in real-time!
 
+## Play On Github Pages
+
+[https://hsinyu-chen.github.io/llm-avalon/](https://hsinyu-chen.github.io/llm-avalon/)
+
 ## Installation & Build
 
 Ensure you have [Node.js](https://nodejs.org/) installed, then run the following commands in the project root:
