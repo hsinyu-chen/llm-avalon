@@ -85,14 +85,13 @@ LlmAvalon is designed with a **Bring Your Own Key** philosophy. You have full co
 - **Groq / Anthropic** (via compatible layers)
 
 > **Tip for Local Models (llama.cpp):**
-> If you are running models locally via llama.cpp, **always prefer the Native llama.cpp provider** over the OpenAI-compatible endpoint. 
-> 
-> Avalon requires a massive system prompt (containing game rules, agent roles, and current state). Our Native llama.cpp integration utilizes the `n_keep` parameter to permanently lock this massive prompt into your KV cache. This ensures fast responses and reduces GPU/CPU overhead per turn. (The standard OpenAI-compatible API does not support `n_keep`, causing frequent cache misses and much slower generation).
+> If you are running models locally via llama.cpp, and model can't output normally , try use openai-compatible instead 
 
 ### Pure Frontend (Serverless & Private)
 This application is a **Pure Frontend (SPA)** built with Angular. 
 - **No Backend Server**: There is no middleman server. Your API calls go directly from your browser to the LLM providers.
 - **Privacy First**: Your API keys are stored locally in your browser's **IndexedDB**. They are never uploaded to any server.
 - **Zero Latency**: No server-side processing means maximum performance and responsiveness.
+
 
 
