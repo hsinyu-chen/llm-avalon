@@ -98,19 +98,17 @@ export class LlamaService implements LLMProvider {
     ): AsyncGenerator<LLMStreamChunk> {
         const baseUrl = this.baseUrl();
 
-        // 1. Build Native Prompt Parts
-        // We separate System Prompt to calculate its token count for n_keep
-        const systemPart = `<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n${systemInstruction || ''}<|eot_id|>`;
+        const systemPart = `System:\n${systemInstruction || ''}\n\n`;
 
         let historyPart = '';
         for (const content of contents) {
-            const role = content.role === 'model' ? 'assistant' : content.role;
+            const role = content.role === 'model' ? 'Assistant' : 'User';
             const text = content.parts.map(p => p.text || '').filter(t => t).join('\n');
             if (text) {
-                historyPart += `<|start_header_id|>${role}<|end_header_id|>\n\n${text}<|eot_id|>`;
+                historyPart += `${role}:\n${text}\n\n`;
             }
         }
-        historyPart += `<|start_header_id|>assistant<|end_header_id|>\n\n`;
+        historyPart += `Assistant:\n`;
 
         const prompt = systemPart + historyPart;
 
@@ -138,7 +136,7 @@ export class LlamaService implements LLMProvider {
             frequency_penalty: this.frequencyPenalty(),
             presence_penalty: this.presencePenalty(),
             repeat_penalty: 1.1,
-            stop: ["<|eot_id|>", "<|end_of_text|>", "\n\n\n", "</s>"],
+            stop: ["User:", "System:", "\n\n\n"],
             cache_prompt: true,
             n_keep: n_keep,
             return_progress: true,
