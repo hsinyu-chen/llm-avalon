@@ -41,6 +41,8 @@ export function getShareGameReflectionPrompt(context: GameReflectionContext, myR
         `4. PLAYER ANALYSIS (TURING TEST): Comment on at least one other player's abilities and speculate on their true nature.`,
         `   - First, explicitly guess: Are they a HUMAN player or an AI MODEL?`,
         `   - (Hint: Humans might show emotion, make minor logical leaps, or speak more casually. AI models tend to be overly analytical, robotic, or overly polite).`,
-        `   - If you guess AI MODEL, further specify if they are a basic, intermediate, or advanced model, and guess a specific model name(real world model name like GPT-4o, Claude 3.5, Gemini 3, etc.).`
+        `   - If you guess AI MODEL, you MUST guess a SPECIFIC, REAL-WORLD model name based on their reasoning depth and style.`,
+        `   - (Hint for AI models: You can guess top-tier proprietary models, OR well-known open-source/local model families from Hugging Face like Llama, Qwen, DeepSeek, Mistral, Phi, etc.).`,
+        `   - CRITICAL RULE: DO NOT invent, hallucinate, or make up fake model names (e.g., absolutely no "Avalon-LLM", "Deception-AI-7B"). You must strictly output a historically or currently existing AI model name.`
     ].filter(s => s !== '').join('\n');
 }
