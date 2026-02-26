@@ -356,7 +356,7 @@ export class GameEngineService {
                 this.log(`[Opening] ${player.agent.name}: ${message}`);
             } catch (e) {
                 this.handleAgentError(e, eventIndex);
-                return; // Stop this phase
+                throw e; // Stop this phase
             }
         }
 
@@ -760,7 +760,7 @@ export class GameEngineService {
 
                 } catch (e) {
                     this.handleAgentError(e, eventIndex);
-                    return; // Stop phase
+                    throw e; // Stop phase
                 }
             }
             roundNumber++;
@@ -1225,7 +1225,7 @@ export class GameEngineService {
                 this.log(`[GameDebrief] ${player.agent.name}: ${result.reflection}`);
             } catch (e) {
                 this.handleAgentError(e, eventIndex);
-                if (this._state().isPaused) return;
+                if (this._state().isPaused) throw e;
             }
         }
     }
@@ -1323,6 +1323,7 @@ export class GameEngineService {
             console.error('[LadyOfTheLake] Error:', e);
             const eventIndex = this._state().events.length - 1;
             this.handleAgentError(e, eventIndex);
+            throw e;
         }
     }
 
@@ -1330,6 +1331,10 @@ export class GameEngineService {
 
     private changePhase(phase: GamePhase, patch: Partial<GameState> = {}) {
         const state = this._state();
+        if (state.isPaused || state.error) {
+            console.warn(`[GameEngine] changePhase rejected: Game is paused or in error state. Target: ${phase}`);
+            return;
+        }
         console.log(`[GameEngine] changePhase: ${state.phase} -> ${phase}`, patch);
 
         // Reset discussion state if entering a discussion-based phase
