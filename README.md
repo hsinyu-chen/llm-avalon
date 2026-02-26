@@ -80,8 +80,14 @@ In this 7-player game, watch how **David (Morgana)** and **Elizabeth (Assassin)*
 ### BYOK (Bring Your Own Key)
 LlmAvalon is designed with a **Bring Your Own Key** philosophy. You have full control over which models to use and how much you spend. We support:
 - **Google Gemini** (Vertex AI / Google AI Studio)
-- **OpenAI** (and OpenAI-compatible endpoints like Voyager, LocalAI, or llama.cpp)
+- **OpenAI** (and OpenAI-compatible endpoints like vLLM, LocalAI)
+- **Native llama.cpp** (Highly Recommended for Local Models)
 - **Groq / Anthropic** (via compatible layers)
+
+> **Tip for Local Models (llama.cpp):**
+> If you are running models locally via llama.cpp, **always prefer the Native llama.cpp provider** over the OpenAI-compatible endpoint. 
+> 
+> Avalon requires a massive system prompt (containing game rules, agent roles, and current state). Our Native llama.cpp integration utilizes the `n_keep` parameter to permanently lock this massive prompt into your KV cache. This ensures fast responses and reduces GPU/CPU overhead per turn. (The standard OpenAI-compatible API does not support `n_keep`, causing frequent cache misses and much slower generation).
 
 ### Pure Frontend (Serverless & Private)
 This application is a **Pure Frontend (SPA)** built with Angular. 
