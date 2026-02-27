@@ -149,7 +149,7 @@ This is the LAST possible vote for this round. If this team is rejected, **EVIL 
 
     return [
         phaseInstruction,
-        rotationLine,
+        isPreVote ? rotationLine : '',
         proposedTeamInfo,
         leaderExplanationPrompt,
         roundOneHint,
