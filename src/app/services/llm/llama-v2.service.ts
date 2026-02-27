@@ -25,37 +25,43 @@ export class LlamaV2Service implements LLMProvider {
     settingsComponent?: Type<LLMSettingsComponent>;
 
     private baseUrl = signal('http://localhost:8080');
-    private modelId = signal('local-model');
-    private temperature = signal(0.8);
-    private frequencyPenalty = signal(0.6);
-    private presencePenalty = signal(0.4);
-    private inputPrice = signal(0);
-    private outputPrice = signal(0);
+    private modelId = signal<string | undefined>(undefined);
+    private temperature = signal<number | undefined>(undefined);
+    private frequencyPenalty = signal<number | undefined>(undefined);
+    private presencePenalty = signal<number | undefined>(undefined);
+    private inputPrice = signal<number | undefined>(undefined);
+    private cacheInputPrice = signal<number | undefined>(undefined);
+    private outputPrice = signal<number | undefined>(undefined);
 
     // Dynamic props from server
     private serverChatTemplate = signal<string | null>(null);
 
     init(config: LLMProviderConfig): void {
+        const cleanStr = (val: any) => (typeof val === 'string' && val.trim() === '') ? undefined : val;
+
         if (config.baseUrl) {
             this.baseUrl.set(config.baseUrl.replace(/\/$/, ''));
         }
-        if (config.modelId) {
-            this.modelId.set(config.modelId);
+        if (config.modelId !== undefined) {
+            this.modelId.set(cleanStr(config.modelId));
         }
         if (config.temperature !== undefined) {
-            this.temperature.set(config.temperature);
+            this.temperature.set(cleanStr(config.temperature));
         }
         if (config.frequency_penalty !== undefined) {
-            this.frequencyPenalty.set(config.frequency_penalty);
+            this.frequencyPenalty.set(cleanStr(config.frequency_penalty));
         }
         if (config.presence_penalty !== undefined) {
-            this.presencePenalty.set(config.presence_penalty);
+            this.presencePenalty.set(cleanStr(config.presence_penalty));
         }
         if (config.inputPrice !== undefined) {
-            this.inputPrice.set(config.inputPrice);
+            this.inputPrice.set(cleanStr(config.inputPrice));
+        }
+        if (config.cacheInputPrice !== undefined) {
+            this.cacheInputPrice.set(cleanStr(config.cacheInputPrice));
         }
         if (config.outputPrice !== undefined) {
-            this.outputPrice.set(config.outputPrice);
+            this.outputPrice.set(cleanStr(config.outputPrice));
         }
 
         // Proactively fetch props to identify model and template
@@ -95,14 +101,15 @@ export class LlamaV2Service implements LLMProvider {
     }
 
     getAvailableModels(): LLMModelDefinition[] {
+        const modelId = this.modelId() || 'local-model';
         return [
             {
-                id: this.modelId(),
-                name: `Local Model (${this.modelId()})`,
+                id: modelId,
+                name: `Local Model (${modelId})`,
                 getRates: () => ({
-                    input: this.inputPrice(),
-                    output: this.outputPrice(),
-                    cached: 0,
+                    input: this.inputPrice() ?? 0,
+                    output: this.outputPrice() ?? 0,
+                    cached: this.cacheInputPrice() ?? 0,
                     cacheStorage: 0
                 })
             }
@@ -110,11 +117,11 @@ export class LlamaV2Service implements LLMProvider {
     }
 
     getDefaultModelId(): string {
-        return this.modelId();
+        return this.modelId() || 'local-model';
     }
 
     getModelId(): string {
-        return this.modelId();
+        return this.modelId() || 'local-model';
     }
 
     async *generateContentStream(
@@ -142,7 +149,7 @@ export class LlamaV2Service implements LLMProvider {
         let n_keep = -1;
         try {
             if (systemInstruction) {
-                n_keep = await this.countTokens(this.modelId(), [
+                n_keep = await this.countTokens(this.modelId() || 'local-model', [
                     { role: 'system', parts: [{ text: systemInstruction }] }
                 ]);
             }
@@ -153,15 +160,15 @@ export class LlamaV2Service implements LLMProvider {
         const preparedSchema = config.responseSchema ? this.prepareSchema(config.responseSchema) : null;
 
         const requestBody: Record<string, unknown> = {
-            model: this.modelId(),
+            model: this.modelId() || 'local-model',
             messages,
             stream: true,
-            temperature: this.temperature(),
-            frequency_penalty: this.frequencyPenalty(),
-            presence_penalty: this.presencePenalty(),
             stream_options: { include_usage: true },
             cache_prompt: true,
             n_keep: n_keep,
+            ...(this.temperature() != null ? { temperature: this.temperature() } : {}),
+            ...(this.frequencyPenalty() != null ? { frequency_penalty: this.frequencyPenalty() } : {}),
+            ...(this.presencePenalty() != null ? { presence_penalty: this.presencePenalty() } : {}),
             ...(config.responseSchema ? {
                 // Combined style for maximum server compatibility
                 response_format: {

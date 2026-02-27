@@ -23,37 +23,43 @@ export class OpenAIService implements LLMProvider {
 
     private baseUrl = signal('https://api.openai.com/v1');
     private apiKey = signal('');
-    private modelId = signal('gpt-4o');
-    private temperature = signal(0.8);
-    private frequencyPenalty = signal(0.6);
-    private presencePenalty = signal(0.4);
-    private inputPrice = signal(0);
-    private outputPrice = signal(0);
+    private modelId = signal<string | undefined>(undefined);
+    private temperature = signal<number | undefined>(undefined);
+    private frequencyPenalty = signal<number | undefined>(undefined);
+    private presencePenalty = signal<number | undefined>(undefined);
+    private inputPrice = signal<number | undefined>(undefined);
+    private cacheInputPrice = signal<number | undefined>(undefined);
+    private outputPrice = signal<number | undefined>(undefined);
 
     init(config: LLMProviderConfig): void {
+        const cleanStr = (val: any) => (typeof val === 'string' && val.trim() === '') ? undefined : val;
+
         if (config.baseUrl) {
             this.baseUrl.set(config.baseUrl.replace(/\/$/, ''));
         }
         if (config.apiKey !== undefined) {
             this.apiKey.set(config.apiKey);
         }
-        if (config.modelId) {
-            this.modelId.set(config.modelId);
+        if (config.modelId !== undefined) {
+            this.modelId.set(cleanStr(config.modelId));
         }
         if (config.temperature !== undefined) {
-            this.temperature.set(config.temperature);
+            this.temperature.set(cleanStr(config.temperature));
         }
         if (config.frequency_penalty !== undefined) {
-            this.frequencyPenalty.set(config.frequency_penalty);
+            this.frequencyPenalty.set(cleanStr(config.frequency_penalty));
         }
         if (config.presence_penalty !== undefined) {
-            this.presencePenalty.set(config.presence_penalty);
+            this.presencePenalty.set(cleanStr(config.presence_penalty));
         }
         if (config.inputPrice !== undefined) {
-            this.inputPrice.set(config.inputPrice);
+            this.inputPrice.set(cleanStr(config.inputPrice));
+        }
+        if (config.cacheInputPrice !== undefined) {
+            this.cacheInputPrice.set(cleanStr(config.cacheInputPrice));
         }
         if (config.outputPrice !== undefined) {
-            this.outputPrice.set(config.outputPrice);
+            this.outputPrice.set(cleanStr(config.outputPrice));
         }
     }
 
@@ -71,24 +77,26 @@ export class OpenAIService implements LLMProvider {
     }
 
     getAvailableModels(): LLMModelDefinition[] {
+        const id = this.modelId() || 'gpt-4o';
         return [
             {
-                id: this.modelId(),
-                name: `OpenAI: ${this.modelId()}`,
+                id: id,
+                name: `OpenAI: ${id}`,
                 getRates: () => ({
-                    input: this.inputPrice(),
-                    output: this.outputPrice()
+                    input: this.inputPrice() ?? 0,
+                    cached: this.cacheInputPrice() ?? 0,
+                    output: this.outputPrice() ?? 0
                 })
             }
         ];
     }
 
     getDefaultModelId(): string {
-        return this.modelId();
+        return this.modelId() || 'gpt-4o';
     }
 
     getModelId(): string {
-        return this.modelId();
+        return this.modelId() || 'gpt-4o';
     }
 
 
@@ -110,25 +118,22 @@ export class OpenAIService implements LLMProvider {
         ];
 
         const requestBody: Record<string, unknown> = {
-            model: this.modelId(),
+            model: this.modelId() || 'gpt-4o',
             messages,
             stream: true,
-            temperature: this.temperature(),
-            frequency_penalty: this.frequencyPenalty(),
-            presence_penalty: this.presencePenalty(),
             stream_options: { include_usage: true },
-            cache_prompt: true, // Optimizes for llama.cpp / LocalAI caching
+            ...(this.temperature() != null ? { temperature: this.temperature() } : {}),
+            ...(this.frequencyPenalty() != null ? { frequency_penalty: this.frequencyPenalty() } : {}),
+            ...(this.presencePenalty() != null ? { presence_penalty: this.presencePenalty() } : {}),
             ...(config.responseSchema ? {
                 response_format: {
                     type: 'json_schema',
                     json_schema: {
                         name: 'structured_output',
                         strict: true,
-                        schema: this.prepareSchema(config.responseSchema, true)
+                        schema: this.prepareSchema(config.responseSchema)
                     }
                 },
-                // Top-level json_schema for some local backends (llama.cpp)
-                json_schema: this.prepareSchema(config.responseSchema, true)
             } : {})
         };
 
@@ -153,7 +158,6 @@ export class OpenAIService implements LLMProvider {
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
-            let isDiscardingGarbage = !!config.responseSchema;
 
             try {
                 while (true) {
@@ -174,48 +178,23 @@ export class OpenAIService implements LLMProvider {
                             const delta = data.choices?.[0]?.delta;
 
                             if (delta?.content) {
-                                let content = delta.content;
-
-                                // Robust JSON Scan: Discard everything until we find '{' or '"'
-                                if (isDiscardingGarbage) {
-                                    const matchIndex = content.search(/[{"]/);
-
-                                    if (matchIndex !== -1) {
-                                        // Found start!
-                                        const char = content[matchIndex];
-                                        isDiscardingGarbage = false;
-
-                                        // If we hit a quote first, it means the brace was missed. Inject it.
-                                        const prefix = char === '"' ? '{' : '';
-
-                                        // Keep only the valid part
-                                        content = prefix + content.slice(matchIndex);
-                                    } else {
-                                        // No valid start token in this chunk, discard entirely
-                                        continue;
-                                    }
-                                }
-
-                                yield { text: content };
+                                yield { text: delta.content };
                             }
 
-                            // Usage tracking for official OpenAI
-                            if (data.usage) {
-                                yield {
-                                    usageMetadata: {
-                                        prompt: data.usage.prompt_tokens || 0,
-                                        candidates: data.usage.completion_tokens || 0,
-                                        cached: 0
-                                    }
-                                };
+                            // Handle explicit thinking content (if server supports it)
+                            if (delta?.reasoning_content) {
+                                yield { text: delta.reasoning_content, thought: true };
                             }
-                            // Usage tracking for llama.cpp OpenAI-compatible servers
-                            else if (data.timings) {
+
+                            // Usage tracking
+                            if (data.usage || data.timings) {
+                                const usage = data.usage;
+                                const timings = data.timings;
                                 yield {
                                     usageMetadata: {
-                                        prompt: data.timings.prompt_n || 0,
-                                        candidates: data.timings.predicted_n || 0,
-                                        cached: 0
+                                        prompt: (usage?.prompt_tokens ?? timings?.prompt_n) || 0,
+                                        candidates: (usage?.completion_tokens ?? timings?.predicted_n) || 0,
+                                        cached: (usage?.prompt_tokens_details?.cached_tokens ?? timings?.cache_n) || 0
                                     }
                                 };
                             }
@@ -240,42 +219,37 @@ export class OpenAIService implements LLMProvider {
     }
 
     /**
-     * Prepares the schema for strict mode:
-     * 1. Removes descriptions (for cleaner local compat).
-     * 2. Injects additionalProperties: false.
-     * 3. Ensures all properties are required.
+     * Robust schema preparation for Structured Outputs.
+     * 1. Removes non-structural fields (title, description, etc.)
+     * 2. Forces additionalProperties: false
+     * 3. Ensures all properties are in 'required' array
      */
-    private prepareSchema(schema: unknown, strictMode: boolean): object {
-        if (!schema || typeof schema !== 'object') return schema as object;
+    private prepareSchema(schema: any): any {
+        if (!schema || typeof schema !== 'object') return schema;
 
-        if (Array.isArray(schema)) {
-            return schema.map(item => this.prepareSchema(item, strictMode));
-        }
+        const result = JSON.parse(JSON.stringify(schema)); // Clone
 
-        const processed: Record<string, unknown> = {};
-        const input = schema as Record<string, unknown>;
+        const process = (obj: any) => {
+            if (obj.type === 'object' && obj.properties) {
+                // Mandatory for strict mode:
+                obj.additionalProperties = false;
+                obj.required = Object.keys(obj.properties);
 
-        // Copy and recurse
-        for (const [key, value] of Object.entries(input)) {
-            if (key === 'description') continue;
-            if (value !== null && typeof value === 'object') {
-                processed[key] = this.prepareSchema(value, strictMode);
-            } else {
-                processed[key] = value;
+                for (const key in obj.properties) {
+                    process(obj.properties[key]);
+                }
+            } else if (obj.type === 'array' && obj.items) {
+                process(obj.items);
             }
-        }
 
-        // Apply strict requirements to Objects
-        if (strictMode && processed['type'] === 'object') {
-            processed['additionalProperties'] = false;
+            // Strip metadata
+            delete obj.title;
+            delete obj.description;
+            delete obj.default;
+            delete obj.$schema;
+        };
 
-            // OpenAI Strict Mode requires all properties to be in the 'required' array
-            const props = processed['properties'] as Record<string, unknown> | undefined;
-            if (props) {
-                processed['required'] = Object.keys(props);
-            }
-        }
-
-        return processed;
+        process(result);
+        return result;
     }
 }

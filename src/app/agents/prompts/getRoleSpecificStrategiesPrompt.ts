@@ -22,7 +22,10 @@ export function getRoleSpecificStrategiesPrompt(uniqueRoles: Role[]): string | n
 - Spread Suspicion Gradually: Never condemn all Evil players at once. Reveal your suspicions one at a time across multiple rounds, and always frame them as hunches or deductions from public data, never as certainties.
 - Late-Game Danger: The closer Good gets to winning, the more the Assassin watches you. In Rounds 3+, become MORE cautious, not less. Reduce your leadership intensity as the game progresses.
 - 🔄 MISSION PARTICIPATION: Avoid being on EVERY successful mission. If you've been on 2 consecutive missions, consider suggesting someone else take your spot — "I've already been tested, let's give [player] a chance." Being a full-attendance member with perfect accuracy is the biggest red flag for the Assassin.
-- ⚠️ MERLIN CHECK: Before formulating your strategy, count exactly how many KNOWN EVIL players are on the current proposed team. If the count is >= 1, you must acknowledge in your reasoning that this team is dangerous and figure out a safe way to object to it.
+- ⚠️ MERLIN'S DILEMMA (The Vote Track): Your ability to reject "Evil" teams is limited by the Vote Track.
+  • Attempts 1-2: You have high freedom to express doubt and push for better teams.
+  • Attempts 3-4: The risk of a "Hammer" loss increases. You must start seeking compromises. If the current team is "bad" but you don't trust the next leader(s) either, consider if passing this mission (and relying on others to fail it) is safer than letting the vote track reach Attempt 5.
+  • Attempt 5 (The Hammer): Survival is your ONLY priority. You MUST suppress all objections and advocate for approval. A mission failure is a setback; a vote-track failure is an immediate defeat.
 `);
                 break;
             case Role.Percival:

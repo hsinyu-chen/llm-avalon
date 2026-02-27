@@ -91,19 +91,18 @@ export class LLMSettingsComponent {
                 defaultModelId = providerInstance.getDefaultModelId();
             }
 
-            const newSettings = { ...current.settings, modelId: defaultModelId };
+            const newSettings: any = { ...current.settings, modelId: defaultModelId };
 
             // Specifically for Gemini, set default thinking levels
             if (newProvider === 'gemini') {
-                newSettings.thinkingLevel = 'high';
-                newSettings.frequency_penalty = 0.2;
-                newSettings.presence_penalty = 0.2;
+                newSettings.thinkingLevel = 'minimal';
             } else if (newProvider === 'openai' || newProvider === 'llama.cpp') {
-                newSettings.temperature = 0.8;
-                newSettings.frequency_penalty = 0.6;
-                newSettings.presence_penalty = 0.4;
-                newSettings.inputPrice = 0;
-                newSettings.outputPrice = 0;
+                // Clear optional parameters to be blank/undefined
+                delete newSettings.temperature;
+                delete newSettings.frequency_penalty;
+                delete newSettings.presence_penalty;
+                delete newSettings.inputPrice;
+                delete newSettings.outputPrice;
             }
 
             this.editingConfig.set({
@@ -123,13 +122,10 @@ export class LLMSettingsComponent {
         const newConfig: LLMConfig = {
             id: crypto.randomUUID(),
             name: this.i18n.translate('settings.newConfigName'),
-            provider: 'gemini',
+            provider: 'openai', // Default to OpenAI which has more visible params
             settings: {
-                modelId: 'gemini-3-flash-preview',
-                apiKey: '',
-                thinkingLevel: 'high',
-                frequency_penalty: 0.2,
-                presence_penalty: 0.2
+                modelId: undefined, // Will use placeholder in UI
+                apiKey: ''
             }
         };
         this.editingConfig.set(newConfig);
@@ -138,17 +134,6 @@ export class LLMSettingsComponent {
 
     editConfig(config: LLMConfig) {
         const cloned = JSON.parse(JSON.stringify(config));
-
-        // Ensure defaults for new fields in existing configs
-        if (cloned.provider === 'gemini') {
-            if (cloned.settings.frequency_penalty === undefined) cloned.settings.frequency_penalty = 0.2;
-            if (cloned.settings.presence_penalty === undefined) cloned.settings.presence_penalty = 0.2;
-        } else if (cloned.provider === 'openai' || cloned.provider === 'llama.cpp') {
-            if (cloned.settings.temperature === undefined) cloned.settings.temperature = 0.8;
-            if (cloned.settings.frequency_penalty === undefined) cloned.settings.frequency_penalty = 0.6;
-            if (cloned.settings.presence_penalty === undefined) cloned.settings.presence_penalty = 0.4;
-        }
-
         this.editingConfig.set(cloned);
         this.testStatus.set('');
     }

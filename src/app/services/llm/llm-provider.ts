@@ -312,6 +312,8 @@ export interface LLMProviderConfig {
     enableCache?: boolean;
     /** Custom input token price (per 1M) */
     inputPrice?: number;
+    /** Custom cache input token price (per 1M) */
+    cacheInputPrice?: number;
     /** Custom output token price (per 1M) */
     outputPrice?: number;
 }

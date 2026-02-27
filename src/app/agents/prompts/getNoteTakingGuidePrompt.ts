@@ -1,6 +1,13 @@
 import { Role, ROLE_META, Team } from '../../models/role';
+import { I18nService } from '../../i18n/i18n.service';
+import { NightPhaseInfo } from '../../models/agent.interface';
 
-export function getNoteTakingGuide(myRole: Role): string {
+export function getNoteTakingGuide(
+    myRole: Role,
+    i18n: I18nService,
+    visiblePlayers: NightPhaseInfo['visiblePlayers'],
+    intelSummary?: string
+): string {
     let labels: string;
     let roleSpecific = '';
 
@@ -38,6 +45,10 @@ export function getNoteTakingGuide(myRole: Role): string {
             break;
     }
 
+    const intelSection = visiblePlayers.length > 0
+        ? `\n**[Your Night Phase Intel - REMINDER]**\n${visiblePlayers.map(p => `- ${p.name} (${p.id}): ${p.info}`).join('\n')}${intelSummary ? `\nSummary: ${intelSummary}` : ''}\n`
+        : `\n**[Your Night Phase Intel - REMINDER]**\n(None)\n`;
+
     return `## Note-Taking Guide
 
 ### 📝 Formatting Rules (CRITICAL)
@@ -47,10 +58,16 @@ Your PRIVATE NOTE is your ONLY memory across rounds. Structure your note with th
 
 ### 1. [Player Analysis]
 For EACH player (excluding yourself), assign a status label and note key evidence.
-⚠️ If you have SECRET INTEL from the Night Phase, USE IT.
 
 Use these labels:
 ${labels}
+***
+
+* system info section is for reference only, DO NOT REPEAT SYSTEM INFO IN PLAYER ANALYSIS
+${intelSection}
+⚠️ **CRITICAL (FACTS OVER GUESSES)**: ${i18n.translate('agent.night.factEmphasis')}
+
+***
 
 ### 2. [Key Deductions]
 What deductions can you make? (e.g., "Mission 2 failed with 1 fail card. Team was X,Y,Z. One of them is Evil.")

@@ -177,4 +177,9 @@ export class GameTimelineComponent {
         const senderId = (event as any).playerId || (event as any).leaderId;
         return noteKey === senderId;
     }
+
+    getAgentModelName(name: string): string | undefined {
+        const p = this.gameEngine.state().players.find(p => p.agent.name === name);
+        return p?.agent.modelName;
+    }
 }

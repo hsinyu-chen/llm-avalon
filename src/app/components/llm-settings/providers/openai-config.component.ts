@@ -1,4 +1,4 @@
-import { Component, inject, output } from '@angular/core';
+import { Component, computed, inject, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LLM_CONFIG_DATA } from '../../../services/llm/llm-config-portal';
@@ -23,10 +23,14 @@ import { TranslatePipe } from '../../../i18n/translate.pipe';
         <input id="openaiUrl" type="text" [(ngModel)]="config.settings.baseUrl" placeholder="https://api.openai.com/v1">
       </div>
 
-      <div class="form-grid columns-2">
+      <div class="form-grid columns-3">
         <div class="form-group-vertical">
           <label for="openaiInputPrice">{{ 'settings.customInputPrice' | translate }}</label>
           <input id="openaiInputPrice" type="number" [(ngModel)]="config.settings.inputPrice" (ngModelChange)="configChanged.emit()" step="0.01" min="0">
+        </div>
+        <div class="form-group-vertical">
+          <label for="openaiCachePrice">{{ 'settings.customCachePrice' | translate }}</label>
+          <input id="openaiCachePrice" type="number" [(ngModel)]="config.settings.cacheInputPrice" (ngModelChange)="configChanged.emit()" step="0.01" min="0">
         </div>
         <div class="form-group-vertical">
           <label for="openaiOutputPrice">{{ 'settings.customOutputPrice' | translate }}</label>
@@ -47,6 +51,14 @@ import { TranslatePipe } from '../../../i18n/translate.pipe';
           <label for="openaiPres">{{ 'settings.presPenalty' | translate }}</label>
           <input id="openaiPres" type="number" [(ngModel)]="config.settings.presence_penalty" (ngModelChange)="configChanged.emit()" step="0.1" min="-2" max="2">
         </div>
+      </div>
+
+      <div class="form-group preset-group" *ngIf="isOpenAIUrl()">
+        <label for="openaiPreset">{{ 'settings.presetModel' | translate }}</label>
+        <select id="openaiPreset" (change)="onPresetChange($event)">
+          <option value="">-- Choose Preset Pricing --</option>
+          <option *ngFor="let p of presets" [value]="p.id">{{ p.id }}</option>
+        </select>
       </div>
     </div>
   `,
@@ -79,9 +91,71 @@ import { TranslatePipe } from '../../../i18n/translate.pipe';
         }
       }
     }
+    .preset-group {
+      margin-top: 8px;
+      select {
+        width: 100%; box-sizing: border-box; padding: 10px; background: #0d1117; border: 1px solid #30363d;
+        border-radius: 6px; color: white; font-size: 0.95em;
+        &:focus { border-color: #58a6ff; outline: none; }
+      }
+    }
   `]
 })
 export class OpenAIConfigComponent {
   config = inject(LLM_CONFIG_DATA);
   configChanged = output<void>();
+
+  presets = OPENAI_PRESETS;
+
+  isOpenAIUrl = computed(() => {
+    const url = this.config.settings.baseUrl || '';
+    return url === '' || url.toLowerCase().includes('openai');
+  });
+
+  onPresetChange(event: Event) {
+    const select = event.target as HTMLSelectElement;
+    const presetId = select.value;
+    const preset = this.presets.find(p => p.id === presetId);
+    if (preset) {
+      this.config.settings.modelId = preset.id;
+      this.config.settings.inputPrice = preset.input;
+      this.config.settings.cacheInputPrice = preset.cached;
+      this.config.settings.outputPrice = preset.output;
+      this.configChanged.emit();
+    }
+  }
 }
+
+const OPENAI_PRESETS = [
+  { id: 'gpt-5.2', input: 1.75, cached: 0.175, output: 14.00 },
+  { id: 'gpt-5.1', input: 1.25, cached: 0.125, output: 10.00 },
+  { id: 'gpt-5', input: 1.25, cached: 0.125, output: 10.00 },
+  { id: 'gpt-5-mini', input: 0.25, cached: 0.025, output: 2.00 },
+  { id: 'gpt-5-nano', input: 0.05, cached: 0.005, output: 0.40 },
+  { id: 'gpt-5.2-chat-latest', input: 1.75, cached: 0.175, output: 14.00 },
+  { id: 'gpt-5.1-chat-latest', input: 1.25, cached: 0.125, output: 10.00 },
+  { id: 'gpt-5-chat-latest', input: 1.25, cached: 0.125, output: 10.00 },
+  { id: 'gpt-5.3-codex', input: 1.75, cached: 0.175, output: 14.00 },
+  { id: 'gpt-5.2-codex', input: 1.75, cached: 0.175, output: 14.00 },
+  { id: 'gpt-5.1-codex-max', input: 1.25, cached: 0.125, output: 10.00 },
+  { id: 'gpt-5.1-codex', input: 1.25, cached: 0.125, output: 10.00 },
+  { id: 'gpt-5-codex', input: 1.25, cached: 0.125, output: 10.00 },
+  { id: 'gpt-5.2-pro', input: 21.00, cached: 0, output: 168.00 },
+  { id: 'gpt-5-pro', input: 15.00, cached: 0, output: 120.00 },
+  { id: 'gpt-4.1', input: 2.00, cached: 0.50, output: 8.00 },
+  { id: 'gpt-4.1-mini', input: 0.40, cached: 0.10, output: 1.60 },
+  { id: 'gpt-4.1-nano', input: 0.10, cached: 0.025, output: 0.40 },
+  { id: 'gpt-4o', input: 2.50, cached: 1.25, output: 10.00 },
+  { id: 'gpt-4o-mini', input: 0.15, cached: 0.075, output: 0.60 },
+  { id: 'gpt-4o-audio-preview', input: 2.50, cached: 0, output: 10.00 },
+  { id: 'gpt-4o-mini-audio-preview', input: 0.15, cached: 0, output: 0.60 },
+  { id: 'o1', input: 15.00, cached: 7.50, output: 60.00 },
+  { id: 'o1-pro', input: 150.00, cached: 0, output: 600.00 },
+  { id: 'o3-pro', input: 20.00, cached: 0, output: 80.00 },
+  { id: 'o3', input: 2.00, cached: 0.50, output: 8.00 },
+  { id: 'o3-deep-research', input: 10.00, cached: 2.50, output: 40.00 },
+  { id: 'o4-mini', input: 1.10, cached: 0.275, output: 4.40 },
+  { id: 'o4-mini-deep-research', input: 2.00, cached: 0.50, output: 8.00 },
+  { id: 'o3-mini', input: 1.10, cached: 0.55, output: 4.40 },
+  { id: 'o1-mini', input: 1.10, cached: 0.55, output: 4.40 },
+];

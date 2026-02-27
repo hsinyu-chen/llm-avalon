@@ -24,10 +24,14 @@ import { TranslatePipe } from '../../../i18n/translate.pipe';
         <input id="llamaModel" type="text" [(ngModel)]="config.settings.modelId" (ngModelChange)="configChanged.emit()" placeholder="Llama-3-8B">
       </div>
 
-      <div class="form-grid columns-2">
+      <div class="form-grid columns-3">
         <div class="form-group-vertical">
           <label for="llamaInputPrice">{{ 'settings.customInputPrice' | translate }}</label>
           <input id="llamaInputPrice" type="number" [(ngModel)]="config.settings.inputPrice" (ngModelChange)="configChanged.emit()" step="0.01" min="0">
+        </div>
+        <div class="form-group-vertical">
+          <label for="llamaCachePrice">{{ 'settings.customCachePrice' | translate }}</label>
+          <input id="llamaCachePrice" type="number" [(ngModel)]="config.settings.cacheInputPrice" (ngModelChange)="configChanged.emit()" step="0.01" min="0">
         </div>
         <div class="form-group-vertical">
           <label for="llamaOutputPrice">{{ 'settings.customOutputPrice' | translate }}</label>

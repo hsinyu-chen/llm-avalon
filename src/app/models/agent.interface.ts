@@ -13,6 +13,8 @@ export interface BaseGameContext {
     missionHistory: MissionRecord[];
     /** Events from the current round (proposals, votes, discussions, outcomes) */
     roundEvents: GameEvent[];
+    /** Ordered list of all player IDs (turn order for leader rotation) */
+    playerIds: string[];
     /** Player ID → display name mapping */
     playerNames: Record<string, string>;
     /** How many consecutive votes have been rejected (0-4, 5 = Evil wins) */

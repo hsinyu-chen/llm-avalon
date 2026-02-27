@@ -179,6 +179,7 @@ export const zhTW = {
         testSuccess: '✅ 連線成功',
         testFailEmpty: '❌ 連線失敗: 回傳內容為空',
         testError: '❌ 連線錯誤: {{msg}}',
+        presetModel: '預設模型 (Preset):',
         temperature: '溫度 (Temperature):',
         freqPenalty: '詞頻懲罰 (Freq Penalty):',
         presPenalty: '存在懲罰 (Pres Penalty):',
@@ -192,6 +193,7 @@ export const zhTW = {
         modelEstDisclaimer: '* 預估值僅供參考，實際費用取決於發言量與遊戲長度。',
         thinkingNote: '💡 系統已在 Prompt 中內建引導式思考 (Guided CoT)，建議將此處的原生思考設為 Minimal 以節省費用並避免衝突。',
         customInputPrice: '輸入價格 (1M tokens/USD):',
+        customCachePrice: '快取輸入價格 (1M tokens/USD):',
         customOutputPrice: '輸出價格 (1M tokens/USD):'
     },
     roles: {

@@ -18,5 +18,11 @@ export function getFactionStrategiesPrompt(): string {
   - You MUST use public discussion to subtly signal who should play the Fail card.
   - For example, say things like "I'll take the lead on this one" or "I'm not feeling confident about this team" to hint at your intentions.
   - If you are on a team with another Evil player and you are unsure, consider playing Success to let your partner handle the sabotage, unless Good is about to win the game.
+
+### 🔨 THE HAMMER STRATEGY (Attempt 5 Authority)
+The Attempt 5 leader (The Hammer) has absolute power because the team MUST pass, but this carries different implications for each team:
+- **For Good Players**: If you are the Hammer, you have a 100% guarantee that your team will be approved. Use this to pick the team you trust most. However, if you pick known or suspected Evil players, you will be PERMANENTLY blamed for the loss. Your choice at Attempt 5 is the ultimate test of your loyalty.
+- **For Evil Players**: If you are the Hammer, you can "dictate" an Evil-included team into the mission. This is your strongest weapon! But be careful: if you pick an all-Evil team and it fails with multiple cards, you've sacrificed your entire team. Usually, picking one reliable ally and one "blameable" Good player is safer.
+- **For Merlin**: Being the Hammer is your best camouflage. Proposing the "perfect" team makes you look like a hero, but proposing a "mostly-good" team that includes one Evil player sitting next to you can provide a perfect alibi as a "loyal but mistaken" player.
 `;
 }

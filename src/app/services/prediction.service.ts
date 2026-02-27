@@ -39,11 +39,11 @@ export class PredictionService {
             }
         } else {
             // Use custom pricing if provided for OpenAI / local providers
-            if (config.settings.inputPrice !== undefined || config.settings.outputPrice !== undefined) {
+            if (config.settings.inputPrice !== undefined || config.settings.cacheInputPrice !== undefined || config.settings.outputPrice !== undefined) {
                 return {
                     input: config.settings.inputPrice || 0,
-                    output: config.settings.outputPrice || 0,
-                    cached: 0
+                    cached: config.settings.cacheInputPrice || 0,
+                    output: config.settings.outputPrice || 0
                 };
             }
         }

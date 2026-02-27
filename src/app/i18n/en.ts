@@ -177,6 +177,7 @@ export const en = {
         testSuccess: '✅ Connection Successful',
         testFailEmpty: '❌ Connection Failed: Empty response',
         testError: '❌ Connection Error: {{msg}}',
+        presetModel: 'Preset Model:',
         temperature: 'Temperature:',
         freqPenalty: 'Freq Penalty:',
         presPenalty: 'Pres Penalty:',
@@ -190,6 +191,7 @@ export const en = {
         modelEstDisclaimer: '* Estimates based on typical game length. Actual costs vary.',
         thinkingNote: '💡 System uses guided CoT in prompts. Recommended to set native thinking to Minimal to save costs and avoid logic conflicts.',
         customInputPrice: 'Input Price (1M tokens/USD):',
+        customCachePrice: 'Cache Input Price (1M tokens/USD):',
         customOutputPrice: 'Output Price (1M tokens/USD):'
     },
     roles: {

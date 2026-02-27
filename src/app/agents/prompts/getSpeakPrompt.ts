@@ -26,7 +26,7 @@ export function getSpeakPrompt(context: SpeakContext, i18n: I18nService, role: R
         },
         'DISCUSSION': {
             teamInfo: '',
-            instruction: `This is PRE-VOTE DISCUSSION — discuss the proposed team before voting.`
+            instruction: `This is PRE-VOTE DISCUSSION (Vote Attempt ${context.consecutiveFailedVotes + 1} of R${context.round}) — discuss the proposed team before voting.`
         },
         'ASSASSINATION_DISCUSSION': {
             teamInfo: '',
@@ -105,29 +105,57 @@ ${directive}
         ? `\n⚠️ MISSION RULE: The team size for this round is FIXED at **${context.currentMissionSize}** players. Do NOT suggest expanding, shrinking, or changing the number of players in the team. Focus only on WHICH ${context.currentMissionSize} players should be included.`
         : '';
 
-    const outputLanguage = i18n.translate('setup.languageName');
+    // Find rotation sequence for this round (Attempts 1-5)
+    const playerCount = context.playerIds.length;
+    const currentLeaderIdx = context.playerIds.indexOf(context.leaderId);
+    const v1LeaderIdx = (currentLeaderIdx - context.consecutiveFailedVotes + playerCount) % playerCount;
 
-    // Generic hint for multi-round discussions (Not for assassination or opening)
-    const multiRoundHint = (context.discussionRound ?? 1) > 1 && isPreVote
+    const roundRotationNames: string[] = [];
+    for (let i = 0; i < 5; i++) {
+        const pid = context.playerIds[(v1LeaderIdx + i) % playerCount];
+        const name = context.playerNames[pid] || pid;
+        roundRotationNames.push(i === context.consecutiveFailedVotes ? `${name}(current)` : name);
+    }
+    const leaderRotationStr = roundRotationNames.join(', ');
+
+    const nextLeaderId = context.playerIds[(currentLeaderIdx + 1) % context.playerIds.length];
+    const nextLeaderName = context.playerNames[nextLeaderId] || nextLeaderId;
+
+    const rotationLine = `Leader Rotation for this Round: ${leaderRotationStr}`;
+
+    const repetitionForceField = (context.discussionRound ?? 1) > 1 && isPreVote
         ? `
-⚠️ **ANTI-REPETITION ENFORCEMENT**: This is discussion turn ${context.discussionRound}. 
-- **DO NOT** repeat your previous arguments or use the same sentence structures.
-- **DO NOT** just ask the same question again if it hasn't been answered; instead, point out that it's being ignored or suggest moving to a vote.
-- Repeating yourself makes you look like a malfunctioning AI and will cause other players to suspect you immediately.
-- If the conversation is looping, either offer a NEW perspective or set "readyToVote" to true.`
+🚨 **ANTI-REPETITION FORCE FIELD (Turn ${context.discussionRound})**: 
+1. **🛑 GREETING BAN**: You have already introduced yourself. DO NOT say "Hello", "I am pX", or any variant. 
+2. **DUP-FILTER**: The Game Host AUTOMATICALLY DISCARDS near-identical messages. Your current speech MUST be >50% different from your last message. 
+3. **MANDATORY PIVOT**: If you've already expressed your opinion on the current team, you MUST now either:
+   - Analyze a DIFFERENT player's behavior.
+   - Comment on the Leader Rotation (${leaderRotationStr}).
+   - Set "readyToVote": true and produce a 1-sentence "I have nothing new to add."`
         : '';
+
+    const hammerWarning = (context.consecutiveFailedVotes === 4 && isPreVote)
+        ? `\n\n🚨 **CRITICAL DANGER: THE HAMMER (VOTE ATTEMPT 5) - FORCED ACCEPTANCE**
+This is the LAST possible vote for this round. If this team is rejected, **EVIL WINS THE GAME IMMEDIATELY!**
+- **GOOD PLAYERS**: You are **FORCED** to approve this team. Do NOT waste time debating the merits of the current team members — since you MUST approve anyway, focus your speech on analyzing which players you trust for the **NEXT** mission round or discussing the identity of the **Next Leader (${nextLeaderName})**.
+- **EVIL PLAYERS**: You win if the team is rejected. However, unless you are 100% sure the team will fail, you should likely approve to stay hidden. If you reject and the team passes, you are permanently exposed.`
+        : `\n\n⏭️ **LEADER ROTATION**: If this team is rejected, the next leader will be **${nextLeaderName} (${nextLeaderId})**.`;
 
     const readyToVoteHint = isPreVote
         ? `10. ⚠️ [FORCED EXIT]: If you have nothing else to say and are ready to vote, you MUST set "readyToVote": true. This is standard protocol to prevent game stagnancy.`
         : '';
 
+    const outputLanguage = i18n.translate('setup.languageName');
+
     return [
         phaseInstruction,
+        rotationLine,
         proposedTeamInfo,
         leaderExplanationPrompt,
         roundOneHint,
         teamSizeHint,
-        multiRoundHint,
+        hammerWarning,
+        repetitionForceField,
         ``,
         `[PUBLIC DISCUSSION]`,
         `Your message will be seen by EVERYONE. Adhere to the **"## Game Rules"** and **"## Faction Strategies"** provided in your System Instruction.`,

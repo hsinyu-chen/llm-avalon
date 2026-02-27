@@ -433,7 +433,7 @@ export class LLMAgent implements IAgent {
         const prompt = this.buildPrompt(
             context,
             'updateNote',
-            ...getUpdateNotePrompt(context, this.myRole!, this.note, this.history, this.i18n)
+            ...getUpdateNotePrompt(context, this.myRole!, this.note, this.history, this.i18n, this.visiblePlayers, this.intelSummary)
         );
 
         const result = await this.queryLLMWithValidation<{ newNote: string; situation_assessment: string; action_strategy: string; reasoning: string; self_check: string }>(
@@ -465,6 +465,7 @@ export class LLMAgent implements IAgent {
             round: context.round + 1, // Ensure voting history includes the last round
             missionHistory: context.missions,
             roundEvents: assassinationEvents,
+            playerIds: context.playerRoles.map(p => p.id),
             playerNames: context.playerNames,
             consecutiveFailedVotes: 0, // Game over
             currentMissionSize: 0, // Game over
@@ -541,7 +542,7 @@ export class LLMAgent implements IAgent {
 
         const analysisBlock = (this.lastAssessment || this.lastStrategy)
             ? [
-                `[PRIVATE DATA - YOUR CURRENT ANALYSIS]`,
+                `[PRIVATE DATA - YOUR ANALYSIS LAST TIME YOU SPEAK]`,
                 `### Latest Assessment`,
                 this.lastAssessment || 'N/A',
                 '',

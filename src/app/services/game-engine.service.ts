@@ -551,7 +551,7 @@ export class GameEngineService {
                     discussionRound: roundNumber,
                     phase,
                     attempt: currentAttempt,
-                    message: `[${phase}] Turn ${roundNumber}${currentAttempt > 0 ? ` (Attempt ${currentAttempt + 1})` : ''}`,
+                    message: `[${phase}] Turn ${roundNumber}${currentAttempt > 0 ? ` (Vote Attempt ${currentAttempt + 1} of R${state.currentRound})` : ''}`,
                     icon: '⏱️'
                 });
             }
@@ -1522,6 +1522,7 @@ export class GameEngineService {
             round: state.currentRound,
             missionHistory: state.missions,
             roundEvents,
+            playerIds: state.players.map(p => p.agent.id),
             playerNames,
             consecutiveFailedVotes: state.consecutiveFailedVotes,
             currentMissionSize: GAME_CONFIGS[state.players.length].missionSizes[state.currentRound - 1],

@@ -41,6 +41,9 @@
                             <button class="debug-prompt-btn retry-logs-btn"
                                 (click)="openRetryLogsDialog(event.retryLogs)" title="View Retry Logs">📜</button>
                             }
+                            @if (getAgentModelName(event.playerName); as modelName) {
+                            <div class="model-badge">{{ modelName }}</div>
+                            }
                             @if (event.status === 'error') {
                             <div class="error-badge">
                                 <span>⚠️ Error</span>
@@ -86,6 +89,7 @@
                     <div class="card-icon">👑</div>
                     <div class="card-body">
                         <strong>{{ event.leaderName }}</strong>
+
                         @if (event.promptText) {
                         <button class="debug-prompt-btn" (click)="openPromptDialog(event.promptText)"
                             title="View Prompt">🔍</button>
@@ -94,6 +98,10 @@
                         <button class="debug-prompt-btn retry-logs-btn" (click)="openRetryLogsDialog(event.retryLogs)"
                             title="View Retry Logs">📜</button>
                         }
+                        @if (getAgentModelName(event.leaderName); as modelName) {
+                        <div class="model-badge">{{ modelName }}</div>
+                        }
+
                         @if (event.isThinking) {
                         <div class="thinking-badge">
                             <span class="spinner"></span> {{ 'playerList.thinking' | translate }}
@@ -252,6 +260,7 @@
                     <div class="card-icon">🗡️</div>
                     <div class="card-body">
                         <strong>{{ event.playerName }}</strong>
+
                         @if (event.promptText) {
                         <button class="debug-prompt-btn" (click)="openPromptDialog(event.promptText)"
                             title="View Prompt">🔍</button>
@@ -260,6 +269,10 @@
                         <button class="debug-prompt-btn retry-logs-btn" (click)="openRetryLogsDialog(event.retryLogs)"
                             title="View Retry Logs">📜</button>
                         }
+                        @if (getAgentModelName(event.playerName); as modelName) {
+                        <div class="model-badge">{{ modelName }}</div>
+                        }
+
                         @if (event.isThinking) {
                         <div class="thinking-badge">
                             <span class="spinner"></span> {{ 'playerList.thinking' | translate }}
@@ -338,6 +351,9 @@
                             @if (event.promptText) {
                             <button class="debug-prompt-btn" (click)="openPromptDialog(event.promptText)"
                                 title="View Prompt">🔍</button>
+                            }
+                            @if (getAgentModelName(event.playerName); as modelName) {
+                            <div class="model-badge">{{ modelName }}</div>
                             }
                             @if (event.isThinking) {
                             <div class="thinking-badge">
