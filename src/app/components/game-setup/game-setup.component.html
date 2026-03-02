@@ -37,6 +37,7 @@
                 <select [ngModel]="p.type" (ngModelChange)="updateAgent(i, { type: $event })">
                     <option value="random">{{ 'setup.random' | translate }}</option>
                     <option value="llm">{{ 'setup.llm' | translate }}</option>
+                    <option value="human">{{ 'setup.human' | translate }}</option>
                 </select>
 
                 @if (p.type === 'llm') {

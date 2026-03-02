@@ -26,7 +26,11 @@ export function getSpeakPrompt(context: SpeakContext, i18n: I18nService, role: R
         },
         'DISCUSSION': {
             teamInfo: '',
-            instruction: `This is PRE-VOTE DISCUSSION (Vote Attempt ${context.consecutiveFailedVotes + 1} of R${context.round}) — discuss the proposed team before voting.`
+            get instruction() {
+                const remaining = context.maxDiscussionRounds - context.discussionRound + 1;
+                return `This is PRE-VOTE DISCUSSION (Vote Attempt ${context.consecutiveFailedVotes + 1} of R${context.round}) — discuss the proposed team before voting.
+(Turn ${context.discussionRound} of ${context.maxDiscussionRounds}, ${remaining} ${remaining === 1 ? 'turn' : 'turns'} left)`;
+            }
         },
         'ASSASSINATION_DISCUSSION': {
             teamInfo: '',
@@ -71,7 +75,8 @@ export function getSpeakPrompt(context: SpeakContext, i18n: I18nService, role: R
 - Try to sound suspicious or overly knowledgeable so the Assassin targets YOU instead.`;
                 }
 
-                return `[ASSASSINATION DISCUSSION PHASE]
+                const remaining = context.maxDiscussionRounds - context.discussionRound + 1;
+                return `[ASSASSINATION DISCUSSION PHASE] (Turn ${context.discussionRound} of ${context.maxDiscussionRounds}, ${remaining} ${remaining === 1 ? 'turn' : 'turns'} left)
 Good team has won 3 missions. The true ASSASSIN has been publicly revealed: ${assassinName || context.assassinId}.
 
 ${directive}

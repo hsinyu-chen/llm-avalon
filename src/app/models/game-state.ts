@@ -59,4 +59,5 @@ export interface GameState {
     isThinking?: boolean;
     isUpdatingNotes?: boolean;
     signaledThisRoundIds?: string[]; // IDs of agents who used a signal this mission round
+    perspectiveId?: string | null;  // Current viewing perspective (Agent ID or null for God View)
 }

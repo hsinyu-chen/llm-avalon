@@ -37,20 +37,19 @@
                 }
 
                 <app-player-list [players]="state().players" [leaderIndex]="state().currentLeaderIndex"
-                    [proposedIds]="state().proposedTeamIds" (playerClick)="selectedPlayer.set($event)"
+                    [perspectiveId]="perspectiveId()" [proposedIds]="state().proposedTeamIds"
+                    (playerClick)="!perspectiveId() && selectedPlayer.set($event)"
                     [layout]="isDesktop() ? 'vertical' : 'grid'">
                 </app-player-list>
             </div>
 
             <div class="timeline-container">
-
-                <app-game-timeline [events]="events()" [playerRoles]="playerRoleMap()" [perspectiveId]="null"
-                    [isGodView]="true">
+                <app-game-timeline [events]="events()" [playerRoles]="playerRoleMap()" [perspectiveId]="perspectiveId()"
+                    [isGodView]="!perspectiveId()">
                 </app-game-timeline>
+                <app-human-interaction></app-human-interaction>
             </div>
         </div>
-
-
 
         @if (state().winner) {
         <div class="final-actions">
@@ -61,82 +60,66 @@
         }
     </div>
 
-    <!-- Player Info Side Nav -->
-    @if (selectedPlayer(); as p) {
-    <div class="side-nav" role="dialog" aria-modal="true">
+    <!-- Right Side Panel -->
+    <div class="side-nav" [class.visible]="selectedPlayer() || perspectiveId()"
+        [class.collapsed]="isSideNavCollapsed()">
+        @if (!isSideNavCollapsed()) {
+        @if (selectedPlayer(); as p) {
+        <!-- Player Detail View (God View) -->
         <div class="nav-header">
             <div class="header-main">
                 <h3>{{p.agent.name}}</h3>
-                <span class="role-badge" [ngClass]="ROLE_META[p.role].team === 'GOOD' ? 'team-good' : 'team-evil'">
-                    {{ 'roles.' + p.role | translate }}
+                <span class="role-badge"
+                    [ngClass]="playerRoleMap()[p.agent.name]?.team === 'GOOD' ? 'team-good' : 'team-evil'">
+                    {{p.role || ('board.unknown' | translate)}}
                 </span>
+                <button class="toggle-btn" (click)="toggleSideNav()" title="Collapse">◀</button>
             </div>
-            <button class="close-btn" (click)="selectedPlayer.set(null)">×</button>
+            <button class="close-btn" (click)="selectedPlayer.set(null)">✕</button>
         </div>
 
         <div class="nav-content">
             <div class="info-section">
-                <div class="section-label">🤖 Model</div>
-                <div class="section-value">{{p.agent.modelName || 'Agent'}}</div>
+                <div class="section-label">Model</div>
+                <div class="section-value">{{p.agent.modelName || 'Human Player'}}</div>
             </div>
 
-            @if (p.agent.getNightInfo && p.agent.getNightInfo() !== 'No night info') {
+            @if (p.agent.getTokenUsage?.(); as getTokenUsage) {
             <div class="info-section">
-                <div class="section-label">🌙 Night Info</div>
-                <div class="section-value night-info">{{p.agent.getNightInfo()}}</div>
-            </div>
-            }
-
-            @if (p.agent.getTokenUsage && p.agent.getTokenUsage()) {
-            <div class="info-section">
-                <div class="section-label">💰 Token Usage & Cost</div>
+                <div class="section-label">Token Stats</div>
                 <div class="token-grid">
-                    <div class="token-row"><span>New Input:</span>
-                        <span>{{p.agent.getTokenUsage()!.promptTokens}}</span>
+                    <div class="token-row">
+                        <span>Input</span>
+                        <span>{{getTokenUsage.promptTokens | number}}</span>
                     </div>
-                    <div class="token-row"><span>Cached Input:</span>
-                        <span>{{p.agent.getTokenUsage()!.cachedTokens}}</span>
+                    <div class="token-row">
+                        <span>Output</span>
+                        <span>{{getTokenUsage.completionTokens | number}}</span>
                     </div>
-                    <div class="token-row"><span>Output:</span>
-                        <span>{{p.agent.getTokenUsage()!.completionTokens}}</span>
-                    </div>
-                    <div class="token-row total"><span>Total Cost:</span> <span>${{p.agent.getTokenUsage()!.totalCost |
-                            number:'1.4-6'}}</span></div>
                 </div>
             </div>
             }
 
-            @if (p.agent.getLastAssessment && p.agent.getLastAssessment()) {
+            @if (p.agent.getLastAssessment?.(); as assessment) {
             <div class="info-section">
-                <div class="section-label">🧠 Situation Assessment</div>
-                <div class="section-value assessment-text">
-                    @if (p.agent.getLastAssessment()) {
-                    {{p.agent.getLastAssessment()}}
-                    } @else {
-                    <span class="spinner mini"></span>
-                    }
-                </div>
+                <div class="section-label">Assessment</div>
+                <div class="assessment-text">{{assessment}}</div>
             </div>
             }
 
-            @if (p.agent.getLastStrategy && p.agent.getLastStrategy()) {
+            @if (p.agent.getLastStrategy?.(); as strategy) {
             <div class="info-section">
-                <div class="section-label">🎯 Action Strategy</div>
-                <div class="section-value strategy-text">
-                    @if (p.agent.getLastStrategy()) {
-                    {{p.agent.getLastStrategy()}}
-                    } @else {
-                    <span class="spinner mini"></span>
-                    }
-                </div>
+                <div class="section-label">Strategy</div>
+                <div class="strategy-text">{{strategy}}</div>
             </div>
             }
 
             <div class="info-section">
                 <div class="section-label">📝 {{ 'playerList.noteTooltip' | translate }} History</div>
                 <div class="note-history">
-                    @if (p.agent.getNoteHistory && p.agent.getNoteHistory()!.length > 0) {
-                    @for (entry of p.agent.getNoteHistory()!; track $index) {
+                    @if (p.agent.getNoteHistory?.(); as history) {
+                    @if (history.length > 0) {
+                    @for (entry of history; track $index) {
                     <div class="note-entry">
                         <div class="note-round">Round {{entry.round}}</div>
                         <div class="note-text">{{entry.note}}</div>
@@ -145,9 +128,65 @@
                     } @else {
                     <div class="note-text">{{p.agent.getPersonalNote() || ('playerList.noNote' | translate)}}</div>
                     }
+                    } @else {
+                    <div class="note-text">{{p.agent.getPersonalNote() || ('playerList.noNote' | translate)}}</div>
+                    }
                 </div>
             </div>
         </div>
+        } @else if (perspectiveId()) {
+        <!-- Game History View (Human Perspective) -->
+        <div class="nav-header">
+            <div class="header-main">
+                <h3>📜 {{ 'timeline.title' | translate }}</h3>
+                <button class="toggle-btn" (click)="toggleSideNav()" title="Collapse">◀</button>
+            </div>
+        </div>
+        <div class="nav-content history-panel">
+            @for (round of gameHistory(); track round.round) {
+            <div class="history-round">
+                <div class="round-header">Mission {{round.round}}</div>
+
+                @for (attempt of round.attempts; track $index) {
+                <div class="history-attempt" [class.passed]="attempt.passed">
+                    <div class="attempt-title">
+                        Attempt {{$index + 1}}: 👑 {{attempt.leaderName}}
+                        <span class="attempt-result">[{{attempt.passed ? '✅' : '❌'}}]</span>
+                    </div>
+                    <div class="attempt-team">
+                        {{attempt.teamNames.join(', ')}}
+                    </div>
+                    <div class="vote-details">
+                        @for (v of attempt.votes; track v.name) {
+                        <div class="vote-item" [class.approve]="v.approve">
+                            <span class="vote-icon">{{v.approve ? '✅' : '❌'}}</span>
+                            <span class="voter-name">{{v.name}}</span>
+                        </div>
+                        }
+                    </div>
+                </div>
+                }
+
+                @if (round.outcome) {
+                <div class="round-outcome" [class.success]="round.outcome.succeeded">
+                    <div class="outcome-title">
+                        {{round.outcome.succeeded ? '🏆 Success' : '💀 Fail'}}
+                        (Fails: {{round.outcome.failsCount}})
+                    </div>
+                    <div class="outcome-team">
+                        Team: {{round.outcome.teamNames.join(', ')}}
+                    </div>
+                </div>
+                }
+            </div>
+            }
+        </div>
+        }
+        } @else {
+        <div class="collapsed-handle" (click)="toggleSideNav()" title="Expand">
+            <span>{{ perspectiveId() ? '📜' : '👤' }}</span>
+            <span class="expand-icon">▶</span>
+        </div>
+        }
     </div>
-    }
 </div>

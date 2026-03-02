@@ -1,0 +1,117 @@
+@if (currentRequest(); as request) {
+<div class="interaction-overlay">
+    <div class="interaction-card">
+        <div class="card-header">
+            <h3>{{ 'interaction.title.' + request.type.toUpperCase() | translate }}</h3>
+            @if (request.type === 'propose') {
+            <div class="sub-header">
+                {{ 'interaction.required' | translate : {count: request.context.teamSize} }}
+                ({{ selectedPlayerIds().length }} / {{ request.context.teamSize }})
+            </div>
+            }
+            @if (request.type === 'speak') {
+            <div class="sub-header">
+                {{ 'interaction.remainingRounds' | translate : {count: remainingRounds()} }}
+            </div>
+            }
+        </div>
+
+        <div class="card-body">
+            @switch (request.type) {
+            @case ('speak') {
+            <div class="speak-container">
+                <div class="signal-bar">
+                    <span class="signal-label">🤫 Hint:</span>
+                    <select class="signal-select" [value]="signalTarget()"
+                        (change)="signalTarget.set($any($event.target).value)">
+                        <option value="none">-- Target --</option>
+                        @for (p of players; track p.agent.id) {
+                        @if (p.agent.id !== gameState().perspectiveId) {
+                        <option [value]="p.agent.id">{{ p.agent.name }}</option>
+                        }
+                        }
+                    </select>
+                    <select class="signal-select" [value]="signalType()"
+                        (change)="signalType.set($any($event.target).value)">
+                        <option [value]="SignalType.None">-- Type --</option>
+                        <option [value]="SignalType.Wink">😉 Wink (Good)</option>
+                        <option [value]="SignalType.Frown">🤨 Frown (Evil)</option>
+                    </select>
+                </div>
+
+                <div class="speak-input-group">
+                    <textarea [placeholder]="'interaction.speakPlaceholder' | translate" [value]="messageInput()"
+                        (input)="updateMessage($event)" rows="1" (keydown.enter)="$event.preventDefault(); onSpeak()">
+                    </textarea>
+                    <div class="input-actions">
+                        <button class="pass-btn" (click)="onPass()">{{ 'interaction.pass' | translate }}</button>
+                        <button class="send-btn" [disabled]="!messageInput().trim()" (click)="onSpeak()">
+                            {{ 'interaction.send' | translate }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+            }
+
+            @case ('vote') {
+            <div class="vote-actions">
+                <button class="reject-btn" (click)="onVote(false)">
+                    {{ 'board.voteReject' | translate }}
+                </button>
+                <button class="approve-btn" (click)="onVote(true)">
+                    {{ 'board.voteApprove' | translate }}
+                </button>
+            </div>
+            }
+
+            @case ('propose') {
+            <div class="player-grid">
+                @for (p of players; track p.agent.id) {
+                <div class="player-chip" [class.selected]="selectedPlayerIds().includes(p.agent.id)"
+                    (click)="togglePlayerSelection(p.agent.id)">
+                    {{ p.agent.name }}
+                </div>
+                }
+            </div>
+            <div class="actions">
+                <button class="primary-btn" [disabled]="selectedPlayerIds().length !== request.context.teamSize"
+                    (click)="onPropose()">
+                    {{ 'board.proposeBtn' | translate }}
+                </button>
+            </div>
+            }
+
+            @case ('mission') {
+            <div class="mission-actions">
+                @if (isEvil) {
+                <button class="fail-btn" (click)="onMission(false)">
+                    {{ 'board.missionFailBtn' | translate }}
+                </button>
+                }
+                <button class="success-btn" (click)="onMission(true)">
+                    {{ 'board.missionSuccessBtn' | translate }}
+                </button>
+            </div>
+            }
+
+            @case ('assassinate') {
+            <div class="player-grid">
+                @for (p of players; track p.agent.id) {
+                <div class="player-chip" [class.selected]="selectedPlayerIds().includes(p.agent.id)"
+                    (click)="togglePlayerSelection(p.agent.id)">
+                    {{ p.agent.name }}
+                </div>
+                }
+            </div>
+            <div class="actions">
+                <button class="primary-btn assassin-btn" [disabled]="selectedPlayerIds().length !== 1"
+                    (click)="onAssassinate()">
+                    {{ 'board.assassinateBtn' | translate }}
+                </button>
+            </div>
+            }
+            }
+        </div>
+    </div>
+</div>
+}

@@ -9,12 +9,14 @@ import { Role } from '../../models/role';
 import { LLMPricingRates } from '../../services/llm/llm-provider';
 import { RandomAgent } from '../../agents/random-agent';
 import { LLMAgent } from '../../agents/llm-agent';
+import { HumanAgent } from '../../agents/human-agent';
+import { HumanInteractionService } from '../../services/human-interaction.service';
 import { FormsModule } from '@angular/forms';
 
 interface PlayerAgentConfig {
     id: string;
     name: string;
-    type: 'random' | 'llm';
+    type: 'random' | 'llm' | 'human';
     configId: string;
 }
 
@@ -33,6 +35,7 @@ export class GameSetupComponent {
     private llmManager = inject(LLMManagerService);
     public i18n = inject(I18nService);
     private prediction = inject(PredictionService);
+    private humanInteraction = inject(HumanInteractionService);
 
     playerCount = signal(7);
     llmConfigs = this.llmManager.configs;
@@ -74,7 +77,11 @@ export class GameSetupComponent {
     }
 
     allAgentsConfigured = computed(() => {
-        return this.playerAgents().every(pa => pa.type === 'random' || (pa.type === 'llm' && pa.configId));
+        return this.playerAgents().every(pa =>
+            pa.type === 'random' ||
+            pa.type === 'human' ||
+            (pa.type === 'llm' && pa.configId)
+        );
     });
 
     applyBulk(configId: string) {
@@ -86,7 +93,18 @@ export class GameSetupComponent {
 
     updateAgent(index: number, patch: Partial<PlayerAgentConfig>) {
         this.playerAgents.update(agents => {
-            const newAgents = [...agents];
+            let newAgents = [...agents];
+
+            // If setting to human, make sure no other player is human
+            if (patch.type === 'human') {
+                newAgents = newAgents.map((a, i) => {
+                    if (i !== index && a.type === 'human') {
+                        return { ...a, type: 'random' };
+                    }
+                    return a;
+                });
+            }
+
             newAgents[index] = { ...newAgents[index], ...patch };
             return newAgents;
         });
@@ -155,6 +173,9 @@ export class GameSetupComponent {
         for (let i = 0; i < evilToFill; i++) roles.push(Role.MinionOfMordred);
 
         const agents = this.playerAgents().map(pa => {
+            if (pa.type === 'human') {
+                return new HumanAgent(pa.id, pa.name, this.humanInteraction);
+            }
             return pa.type === 'llm' && pa.configId
                 ? new LLMAgent(pa.id, pa.name, this.llmManager, this.i18n, pa.configId)
                 : new RandomAgent(pa.id, pa.name);

@@ -76,6 +76,8 @@ export interface SpeakContext extends BaseGameContext {
     proposedTeam: string[];
     leaderId: string;
     discussionRound: number;
+    /** The maximum number of discussion rounds allowed for this phase */
+    maxDiscussionRounds: number;
     /** Assassin's identity — only set during ASSASSINATION_DISCUSSION phase */
     assassinId?: string;
 }

@@ -172,8 +172,12 @@ export class GameTimelineComponent {
     }
 
     shouldShowNote(event: GameEvent, noteKey: string): boolean {
-        // We now always show God View from the sender's perspective for each event.
-        // This ensures the timeline is consistent and clear.
+        const perspectiveId = this.perspectiveId();
+        if (perspectiveId) {
+            // In Player Perspective, only show notes belonging to that player
+            return noteKey === perspectiveId;
+        }
+        // God View: show the sender's note for each event to keep it consistent
         const senderId = (event as any).playerId || (event as any).leaderId;
         return noteKey === senderId;
     }

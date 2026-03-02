@@ -19,6 +19,7 @@ export const en = {
         bulkApplyBtn: 'Apply to all AI',
         random: 'RNG Test',
         llm: 'AI (LLM)',
+        human: 'Human Player',
         chooseConfig: '-- Select Config --',
         roles: 'Roles',
         rolesSubtitle: 'Merlin and Assassin are required.',
@@ -59,6 +60,8 @@ export const en = {
         proposeBtn: 'Propose Team',
         approveBtn: 'Approve',
         rejectBtn: 'Reject',
+        voteApprove: 'Approve',
+        voteReject: 'Reject',
         missionSuccessBtn: 'Play Success',
         missionFailBtn: 'Play Fail',
         excaliburTarget: 'Target for Excalibur',
@@ -69,6 +72,7 @@ export const en = {
         chat: 'Chat',
         chatPlaceholder: 'Type your message...',
         sendBtn: 'Send',
+        human: 'Human',
         sysGameStart: 'Game started!',
         sysGoodWins: 'Good wins!',
         sysEvilWins: 'Evil wins!',
@@ -275,6 +279,21 @@ export const en = {
         "Jennifer", "Michael", "Linda", "David", "Elizabeth",
         "William", "Barbara", "Richard", "Susan", "Joseph"
     ],
+    interaction: {
+        title: {
+            SPEAK: 'Speak',
+            VOTE: 'Vote',
+            PROPOSE_TEAM: 'Propose Team',
+            MISSION: 'Mission',
+            ASSASSINATE: 'Assassinate Merlin',
+            PROPOSE: 'Propose Team'
+        },
+        required: 'Choose {{count}} players',
+        speakPlaceholder: 'Type your message...',
+        send: 'Send',
+        pass: 'Pass',
+        remainingRounds: 'Remaining rounds: {{count}}'
+    },
     common: {
         fetch: 'Fetch'
     }

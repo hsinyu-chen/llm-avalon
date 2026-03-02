@@ -88,6 +88,7 @@ export class GameEngineService {
             isThinking: false,
             isUpdatingNotes: false,
             signaledThisRoundIds: [],
+            perspectiveId: agents.find(a => a.modelName === 'Human')?.id || null
         });
 
         this.addEvent({ type: 'ROUND_START', round: 1 });
@@ -313,7 +314,8 @@ export class GameEngineService {
                     visibleAgentIds: state.players.map(p => p.agent.id),
                     proposedTeam: [],
                     leaderId: state.players[state.currentLeaderIndex].agent.id,
-                    discussionRound: 0
+                    discussionRound: 0,
+                    maxDiscussionRounds: 1
                 }, (chunk, field) => {
                     this._state.update(s => {
                         const newEvents = [...s.events];
@@ -527,7 +529,7 @@ export class GameEngineService {
             : new Set<string>(Array.isArray(restoredPasses) ? restoredPasses : []);
 
         // MISSION_DEBRIEF and GAME_DEBRIEF should only be 1 round globally
-        const isDebrief = phase === 'MISSION_DEBRIEF' || phase === 'ASSASSINATION_DISCUSSION';
+        const isDebrief = phase === 'MISSION_DEBRIEF';
         const maxRounds = isDebrief ? 1 : (state.discussion?.maxRounds ?? 10);
         const lastPersonSpeechCount = state.discussion?.lastPersonSpeechCount ?? {};
 
@@ -650,6 +652,7 @@ export class GameEngineService {
                         proposedTeam: state.proposedTeamIds,
                         leaderId: state.players[state.currentLeaderIndex].agent.id,
                         discussionRound: roundNumber,
+                        maxDiscussionRounds: maxRounds,
                         assassinId: phase === 'ASSASSINATION_DISCUSSION' ? state.players.find(p => p.role === Role.Assassin)?.agent.id : undefined
                     } as SpeakContext, (chunk, field) => {
                         this._state.update(s => {
@@ -1133,6 +1136,11 @@ export class GameEngineService {
         for (const player of state.players) {
             if (this._state().isPaused) return;
 
+            // Skip human player reflections
+            if (player.agent.modelName === 'Human') {
+                continue;
+            }
+
             // Mark as thinking
             this.updateState({ isThinking: true });
 
@@ -1344,9 +1352,14 @@ export class GameEngineService {
 
         // Reset discussion state if entering a discussion-based phase
         if ([GamePhase.Discussion, GamePhase.MissionDebrief, GamePhase.AssassinationDiscussion, GamePhase.GameDebrief].includes(phase) && !patch.discussion) {
+            let maxRounds = 10;
+            if (phase === GamePhase.Discussion) maxRounds = 6;
+            else if (phase === GamePhase.AssassinationDiscussion) maxRounds = 3;
+            else if (phase === GamePhase.MissionDebrief || phase === GamePhase.GameDebrief) maxRounds = 1;
+
             patch.discussion = {
                 roundNumber: 1,
-                maxRounds: 10,
+                maxRounds: maxRounds,
                 passedAgentIds: new Set<string>(),
                 lastPersonSpeechCount: {}
             };
@@ -1365,6 +1378,10 @@ export class GameEngineService {
 
         if (!alreadyHasEvent) {
             this.addEvent({ type: 'PHASE_CHANGE', phase, round: eventRound, failedVotes: eventFailedVotes });
+        }
+
+        if (phase === GamePhase.GameOver) {
+            patch.perspectiveId = null;
         }
 
         this.updateState({ phase, ...patch });
@@ -1737,5 +1754,51 @@ export class GameEngineService {
 
         // Store in event
         (event as any).privateNotes = privateNotes;
+    }
+
+    getVisibleRoleInfo(observerId: string | null, targetPlayer: PlayerState): { role: string; team: string; isOriginal: boolean } {
+        if (!observerId) {
+            const meta = ROLE_META[targetPlayer.role];
+            return { role: targetPlayer.role, team: meta.team, isOriginal: true };
+        }
+
+        // Own role is always visible
+        if (observerId === targetPlayer.agent.id) {
+            const meta = ROLE_META[targetPlayer.role];
+            return { role: targetPlayer.role, team: meta.team, isOriginal: true };
+        }
+
+        const observer = this._state().players.find(p => p.agent.id === observerId);
+        if (!observer) return { role: 'UNKNOWN', team: 'UNKNOWN', isOriginal: false };
+
+        const observerRole = observer.role;
+        const targetRole = targetPlayer.role;
+
+        // Logic based on Avalon rules
+        switch (observerRole) {
+            case Role.Merlin:
+                // Merlin knows Evil, except Mordred
+                if (ROLE_META[targetRole].team === Team.Evil && targetRole !== Role.Mordred) {
+                    return { role: 'EVIL', team: Team.Evil, isOriginal: false };
+                }
+                break;
+            case Role.Percival:
+                // Percival sees Merlin and Morgana
+                if (targetRole === Role.Merlin || targetRole === Role.Morgana) {
+                    return { role: 'MERLIN_OR_MORGANA', team: 'UNKNOWN', isOriginal: false };
+                }
+                break;
+            case Role.Assassin:
+            case Role.Mordred:
+            case Role.Morgana:
+            case Role.MinionOfMordred:
+                // Evil knows each other, except Oberon
+                if (ROLE_META[targetRole].team === Team.Evil && targetRole !== Role.Oberon) {
+                    return { role: 'EVIL_ALLY', team: Team.Evil, isOriginal: false };
+                }
+                break;
+        }
+
+        return { role: 'UNKNOWN', team: 'UNKNOWN', isOriginal: false };
     }
 }

@@ -19,6 +19,7 @@ export const zhTW = {
         bulkApplyBtn: '套用至所有 AI',
         random: '隨機測試',
         llm: 'AI (LLM)',
+        human: '人類玩家',
         chooseConfig: '-- 選擇設定 --',
         roles: '角色設定',
         rolesSubtitle: '梅林與刺客為必要角色。',
@@ -59,6 +60,8 @@ export const zhTW = {
         proposeBtn: '提議隊伍',
         approveBtn: '贊成',
         rejectBtn: '反對',
+        voteApprove: '贊成',
+        voteReject: '反對',
         missionSuccessBtn: '出任務: 成功',
         missionFailBtn: '出任務: 失敗',
         excaliburTarget: '選擇被王者之劍切換的目標',
@@ -69,6 +72,7 @@ export const zhTW = {
         chat: '討論區',
         chatPlaceholder: '輸入訊息...',
         sendBtn: '發送 / 講話',
+        human: '人類',
         sysGameStart: '遊戲開始！',
         sysGoodWins: '正義陣營獲勝！',
         sysEvilWins: '邪惡陣營獲勝！',
@@ -277,6 +281,21 @@ export const zhTW = {
         "蔡淑芬", "郭銘輝", "林嘉欣", "張家豪", "許志豪",
         "鄭育權", "謝承翰", "黃品睿", "呂冠杰", "曾俊達"
     ],
+    interaction: {
+        title: {
+            SPEAK: '發言',
+            VOTE: '投票',
+            PROPOSE_TEAM: '提議小組',
+            MISSION: '執行任務',
+            ASSASSINATE: '刺殺 Merlin',
+            PROPOSE: '提議隊伍'
+        },
+        required: '需要選擇 {{count}} 名玩家',
+        speakPlaceholder: '請輸入你的發言内容...',
+        send: '發送',
+        pass: '跳過',
+        remainingRounds: '剩餘發言輪次: {{count}}'
+    },
     common: {
         fetch: '抓取'
     }

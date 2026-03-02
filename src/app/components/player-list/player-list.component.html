@@ -1,19 +1,22 @@
 <div class="player-grid" [class.vertical-layout]="layout() === 'vertical'">
     @for (p of players(); track p.agent.id) {
-    <div class="player-card" role="button" tabindex="0" [ngClass]="{
-           'is-leader': $index === leaderIndex(),
-           'on-mission': proposedIds().includes(p.agent.id),
-           'team-good': ROLE_META[p.role].team === 'GOOD',
-           'team-evil': ROLE_META[p.role].team === 'EVIL'
-         }" (click)="playerClick.emit(p)" (keydown.enter)="playerClick.emit(p)"
-        (keydown.space)="playerClick.emit(p); $event.preventDefault()">
+    <div class="player-card" role="button" tabindex="0" [class.is-leader]="$index === leaderIndex()"
+        [class.on-mission]="proposedIds().includes(p.agent.id)" [class.team-good]="getVisibleInfo(p).team === Team.Good"
+        [class.team-evil]="getVisibleInfo(p).team === Team.Evil" (click)="playerClick.emit(p)"
+        (keydown.enter)="playerClick.emit(p)" (keydown.space)="playerClick.emit(p); $event.preventDefault()">
         @if ($index === leaderIndex()) {
         <div class="leader-badge">👑</div>
         }
-        <div class="name">{{p.agent.name}}<span class="id">({{p.agent.id}})</span>
+        <div class="name">
+            @if (p.agent.id === perspectiveId()) {
+            <span class="self-icon" title="You">👁️</span>
+            }
+            {{p.agent.name}}<span class="id">({{p.agent.id}})</span>
         </div>
-        <div class="role" [class.team-good]="ROLE_META[p.role].team === 'GOOD'" [class.team-evil]="ROLE_META[p.role].team === 'EVIL'">
-            {{ 'roles.' + p.role | translate }}
+        <div class="role" [class.team-good]="getVisibleInfo(p).team === Team.Good"
+            [class.team-evil]="getVisibleInfo(p).team === Team.Evil">
+            {{ (getVisibleInfo(p).isOriginal ? ('roles.' + p.role) : ('agent.night.labels.' +
+            getVisibleInfo(p).role.toLowerCase())) | translate }}
         </div>
         <div class="model-badge">{{p.agent.modelName || 'Agent'}}</div>
 
@@ -28,7 +31,7 @@
 
         @if (p.agent.getTokenUsage?.(); as usage) {
         <div class="token-usage-mini">
-<div class="cost">💰 ${{ usage.totalCost | number:'1.4-8' }}</div>
+            <div class="cost">💰 ${{ usage.totalCost | number:'1.4-8' }}</div>
             <div class="tokens">In: {{usage.promptTokens + (usage.cachedTokens || 0)}} | Out: {{usage.completionTokens}}
             </div>
         </div>

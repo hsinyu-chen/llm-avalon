@@ -10,6 +10,7 @@ import { TranslatePipe } from '../../i18n/translate.pipe';
 import { I18nService } from '../../i18n/i18n.service';
 import { ScoreboardComponent } from './scoreboard/scoreboard.component';
 import { StatusPanelComponent } from './status-panel/status-panel.component';
+import { HumanInteractionComponent } from './human-interaction/human-interaction.component';
 
 @Component({
     selector: 'app-game-board',
@@ -19,6 +20,7 @@ import { StatusPanelComponent } from './status-panel/status-panel.component';
         GameTimelineComponent,
         ScoreboardComponent,
         StatusPanelComponent,
+        HumanInteractionComponent,
         NgClass,
         TranslatePipe,
         DecimalPipe
@@ -35,9 +37,76 @@ export class GameBoardComponent {
     state = this.engine.state;
     events = computed(() => this.state().events || []);
     currentRound = this.engine.currentRound;
+    perspectiveId = computed(() => this.state().perspectiveId ?? null);
 
     selectedPlayer = signal<PlayerState | null>(null);
     copySuccess = signal(false);
+    isSideNavCollapsed = signal(false);
+
+    toggleSideNav() {
+        this.isSideNavCollapsed.update(v => !v);
+    }
+
+    gameHistory = computed(() => {
+        const events = this.events();
+        const rounds: any[] = [];
+        let currentRound: any = null;
+
+        for (const e of events) {
+            if (e.type === 'ROUND_START') {
+                currentRound = { round: e.round, attempts: [], outcome: null };
+                rounds.push(currentRound);
+            }
+            if (!currentRound) {
+                // Handle cases where ROUND_START might be missing but we have events
+                if ('round' in e && typeof e.round === 'number') {
+                    currentRound = rounds.find(r => r.round === e.round);
+                    if (!currentRound) {
+                        currentRound = { round: e.round, attempts: [], outcome: null };
+                        rounds.push(currentRound);
+                    }
+                } else {
+                    continue;
+                }
+            }
+
+            if (e.type === 'TEAM_PROPOSAL') {
+                currentRound.attempts.push({
+                    leaderName: e.leaderName,
+                    teamNames: e.teamNames,
+                    votes: [],
+                    passed: false
+                });
+            } else if (e.type === 'VOTE_RESULTS') {
+                const attempt = currentRound.attempts[currentRound.attempts.length - 1];
+                if (attempt) {
+                    attempt.votes = e.votes.map(v => ({ name: v.name, approve: v.approve }));
+                    attempt.passed = e.passed;
+                }
+            } else if (e.type === 'MISSION_OUTCOME') {
+                currentRound.outcome = {
+                    succeeded: e.succeeded,
+                    failsCount: e.failsCount,
+                    teamNames: e.teamNames
+                };
+            }
+        }
+        return rounds;
+    });
+
+    getPlayerName(id: string): string {
+        const p = this.engine.state().players.find(p => p.agent.id === id);
+        return p ? p.agent.name : id;
+    }
+
+    getAvatarColor(name: string): string {
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) {
+            hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const h = hash % 360;
+        return `hsl(${h}, 70%, 25%)`;
+    }
     isDesktop = signal(window.innerWidth >= 1024);
 
     totalTokenUsage = computed(() => {
