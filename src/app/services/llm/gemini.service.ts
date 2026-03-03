@@ -73,7 +73,8 @@ export class GeminiService implements LLMProvider {
             supportsContextCaching: true,
             supportsThinking: true,
             supportsStructuredOutput: true,
-            isLocalProvider: false
+            isLocalProvider: false,
+            supportsSpeedMetrics: false
         };
     }
 
@@ -122,6 +123,20 @@ export class GeminiService implements LLMProvider {
                         input: 0.50,
                         output: 3.00,
                         cached: 0.05,
+                        cacheStorage: 1.00
+                    };
+                }
+            },
+            {
+                id: 'gemini-3.1-flash-lite-preview',
+                name: 'Gemini 3.1 Flash Lite Preview',
+                supportsThinking: true,
+                allowedThinkingLevels: ['minimal', 'low', 'medium', 'high'],
+                getRates: () => {
+                    return {
+                        input: 0.25,
+                        output: 1.50,
+                        cached: 0.025,
                         cacheStorage: 1.00
                     };
                 }
@@ -181,11 +196,16 @@ export class GeminiService implements LLMProvider {
 
     init(config: LLMProviderConfig): void {
         this.apiKey.set(config.apiKey || '');
-        this.initialize(
-            this.apiKey(),
-            config.modelId || DEFAULT_GEMINI_MODEL_ID
-        );
-        if (config.thinkingLevel) this.thinkingLevel = this.mapThinkingLevel(config.thinkingLevel);
+        if (config.modelId || DEFAULT_GEMINI_MODEL_ID) {
+            this.initialize(
+                this.apiKey(),
+                config.modelId || DEFAULT_GEMINI_MODEL_ID
+            );
+        }
+        const thinkingLevel = config.additionalSettings?.['thinkingLevel'];
+        if (thinkingLevel) {
+            this.thinkingLevel = this.mapThinkingLevel(thinkingLevel as string);
+        }
     }
 
     isConfigured(): boolean {
@@ -223,22 +243,18 @@ export class GeminiService implements LLMProvider {
             if (candidate?.content?.parts) {
                 for (const part of candidate.content.parts) {
                     const extPart = part as Part & { thought?: boolean; thoughtSignature?: string };
-                    // Only yield non-thought parts for streaming output
-                    // (thought parts are for debugging/monitoring only)
-                    if (!extPart.thought) {
-                        yield {
-                            text: extPart.text,
-                            thought: extPart.thought,
-                            thoughtSignature: extPart.thoughtSignature,
-                            functionCall: extPart.functionCall as object | undefined,
-                            finishReason,
-                            usageMetadata: chunk.usageMetadata ? {
-                                prompt: chunk.usageMetadata.promptTokenCount || 0,
-                                candidates: chunk.usageMetadata.candidatesTokenCount || 0,
-                                cached: chunk.usageMetadata.cachedContentTokenCount || 0
-                            } : undefined
-                        };
-                    }
+                    yield {
+                        text: extPart.text,
+                        thought: extPart.thought,
+                        thoughtSignature: extPart.thoughtSignature,
+                        functionCall: extPart.functionCall as object | undefined,
+                        finishReason,
+                        usageMetadata: chunk.usageMetadata ? {
+                            prompt: chunk.usageMetadata.promptTokenCount || 0,
+                            candidates: chunk.usageMetadata.candidatesTokenCount || 0,
+                            cached: chunk.usageMetadata.cachedContentTokenCount || 0
+                        } : undefined
+                    };
                 }
             } else if (finishReason) {
                 // Yield reason even if no parts (e.g. blocked or max tokens)

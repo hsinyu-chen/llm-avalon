@@ -32,6 +32,12 @@ export class LlamaV2Service implements LLMProvider {
     private inputPrice = signal<number | undefined>(undefined);
     private cacheInputPrice = signal<number | undefined>(undefined);
     private outputPrice = signal<number | undefined>(undefined);
+    private topP = signal<number | undefined>(undefined);
+    private topK = signal<number | undefined>(undefined);
+    private minP = signal<number | undefined>(undefined);
+    private repetitionPenalty = signal<number | undefined>(undefined);
+    private enableThinking = signal<boolean>(false);
+    private reasoningEffort = signal<string>('low');
 
     // Dynamic props from server
     private serverChatTemplate = signal<string | null>(null);
@@ -62,6 +68,26 @@ export class LlamaV2Service implements LLMProvider {
         }
         if (config.outputPrice !== undefined) {
             this.outputPrice.set(cleanStr(config.outputPrice));
+        }
+
+        const settings = config.additionalSettings || {};
+        if (settings['topP'] !== undefined) {
+            this.topP.set(cleanStr(settings['topP']));
+        }
+        if (settings['topK'] !== undefined) {
+            this.topK.set(cleanStr(settings['topK']));
+        }
+        if (settings['minP'] !== undefined) {
+            this.minP.set(cleanStr(settings['minP']));
+        }
+        if (settings['repetitionPenalty'] !== undefined) {
+            this.repetitionPenalty.set(cleanStr(settings['repetitionPenalty']));
+        }
+        if (settings['enableThinking'] !== undefined) {
+            this.enableThinking.set(settings['enableThinking'] as boolean);
+        }
+        if (settings['reasoningEffort'] !== undefined) {
+            this.reasoningEffort.set(settings['reasoningEffort'] as string);
         }
 
         // Proactively fetch props to identify model and template
@@ -96,7 +122,8 @@ export class LlamaV2Service implements LLMProvider {
             supportsContextCaching: true, // Supported via n_keep + cache_prompt
             supportsThinking: true,      // Supported via OpenAI reasoning_content
             supportsStructuredOutput: true,
-            isLocalProvider: true
+            isLocalProvider: true,
+            supportsSpeedMetrics: true
         };
     }
 
@@ -136,8 +163,7 @@ export class LlamaV2Service implements LLMProvider {
             await this.fetchProps();
         }
 
-        // Map contents to OpenAI format
-        const messages = [
+        const messages: any[] = [
             ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
             ...contents.map(c => ({
                 role: c.role === 'model' ? 'assistant' : c.role,
@@ -159,6 +185,13 @@ export class LlamaV2Service implements LLMProvider {
 
         const preparedSchema = config.responseSchema ? this.prepareSchema(config.responseSchema) : null;
 
+        // Map reasoning effort to token budget (llama.cpp uses reasoning_budget, not reasoning_effort)
+        const reasoningBudgetMap: Record<string, number> = { low: 512, medium: 2048, high: 8192 };
+        const thinkingEnabled = this.enableThinking();
+        const reasoningBudget = thinkingEnabled
+            ? (reasoningBudgetMap[this.reasoningEffort()] ?? 2048)
+            : 0;
+
         const requestBody: Record<string, unknown> = {
             model: this.modelId() || 'local-model',
             messages,
@@ -169,8 +202,11 @@ export class LlamaV2Service implements LLMProvider {
             ...(this.temperature() != null ? { temperature: this.temperature() } : {}),
             ...(this.frequencyPenalty() != null ? { frequency_penalty: this.frequencyPenalty() } : {}),
             ...(this.presencePenalty() != null ? { presence_penalty: this.presencePenalty() } : {}),
+            ...(this.topP() != null ? { top_p: this.topP() } : {}),
+            ...(this.topK() != null ? { top_k: this.topK() } : {}),
+            ...(this.minP() != null ? { min_p: this.minP() } : {}),
+            ...(this.repetitionPenalty() != null ? { repetition_penalty: this.repetitionPenalty() } : {}),
             ...(config.responseSchema ? {
-                // Combined style for maximum server compatibility
                 response_format: {
                     type: 'json_schema',
                     json_schema: {
@@ -178,14 +214,13 @@ export class LlamaV2Service implements LLMProvider {
                         strict: true,
                         schema: this.prepareSchema(config.responseSchema)
                     }
-                },
-                // Some versions look directly at the root json_schema
-                json_schema: {
-                    name: 'structured_output',
-                    strict: true,
-                    schema: this.prepareSchema(config.responseSchema)
                 }
-            } : {})
+            } : {}),
+            // llama.cpp native: enable_thinking must be inside chat_template_kwargs
+            chat_template_kwargs: {
+                enable_thinking: thinkingEnabled
+            },
+            reasoning_budget: reasoningBudget
         };
 
         try {

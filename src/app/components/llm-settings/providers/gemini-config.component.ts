@@ -28,7 +28,9 @@ import { TranslatePipe } from '../../../i18n/translate.pipe';
       @if (supportsThinking()) {
         <div class="form-group">
           <label for="thinkingLevel">Thinking Level:</label>
-          <select id="thinkingLevel" [(ngModel)]="config.settings.thinkingLevel">
+          <select id="thinkingLevel" 
+                  [(ngModel)]="config.settings.additionalSettings!['thinkingLevel']"
+                  (ngModelChange)="configChanged.emit()">
             @for (level of thinkingLevels(); track level) {
               <option [value]="level">{{level | titlecase}}</option>
             }
@@ -36,6 +38,7 @@ import { TranslatePipe } from '../../../i18n/translate.pipe';
           <small class="field-note">{{ 'settings.thinkingNote' | translate }}</small>
         </div>
       }
+    </div>
   `,
   styles: [`
     .provider-fields {
@@ -92,6 +95,13 @@ export class GeminiConfigComponent {
   modelId = signal(this.config.settings.modelId || this.geminiService.getDefaultModelId());
 
   configChanged = output<void>();
+
+  constructor() {
+    // Ensure additionalSettings is initialized
+    if (!this.config.settings.additionalSettings) {
+      this.config.settings.additionalSettings = {};
+    }
+  }
 
   onModelChange(newModelId: string) {
     this.modelId.set(newModelId);

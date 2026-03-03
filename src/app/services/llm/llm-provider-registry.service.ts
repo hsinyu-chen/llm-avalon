@@ -81,7 +81,8 @@ export class LLMProviderRegistryService {
             supportsContextCaching: false,
             supportsThinking: false,
             supportsStructuredOutput: false,
-            isLocalProvider: false
+            isLocalProvider: false,
+            supportsSpeedMetrics: false
         };
     }
 

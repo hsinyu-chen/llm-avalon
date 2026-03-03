@@ -175,7 +175,10 @@ h3 {
 
     .private-note-item {
         margin-bottom: 4px;
-        &:last-child { margin-bottom: 0; }
+
+        &:last-child {
+            margin-bottom: 0;
+        }
     }
 }
 
@@ -607,6 +610,23 @@ h3 {
         display: flex;
         flex-direction: column;
 
+        .reasoning-text {
+            flex: 1 1 auto;
+            min-height: 0;
+            background: #0d1117;
+            padding: 12px;
+            border-radius: 6px;
+            overflow-y: auto;
+            border: 1px solid #30363d;
+            margin: 0;
+            font-family: inherit;
+            font-size: 0.95em;
+            color: #e6edf3;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.6;
+        }
+
         pre {
             flex: 1 1 auto;
             min-height: 0;
@@ -638,4 +658,27 @@ h3 {
     display: inline-block;
     margin-left: 4px;
     vertical-align: middle;
+}
+
+.speed-badge {
+    font-size: 0.65em;
+    border-radius: 3px;
+    padding: 1px 5px;
+    margin-top: 3px;
+    display: inline-block;
+    margin-left: 4px;
+    vertical-align: middle;
+    font-weight: 500;
+
+    &.pp-speed {
+        color: #d29922;
+        background: rgba(210, 153, 34, 0.1);
+        border: 1px solid rgba(210, 153, 34, 0.2);
+    }
+
+    &.completion-speed {
+        color: #3fb950;
+        background: rgba(63, 185, 80, 0.1);
+        border: 1px solid rgba(63, 185, 80, 0.2);
+    }
 }

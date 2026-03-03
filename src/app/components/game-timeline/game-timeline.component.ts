@@ -4,6 +4,7 @@ import { GameEvent, GamePhase } from '../../models/game-event';
 import { TranslatePipe } from '../../i18n/translate.pipe';
 import { I18nService } from '../../i18n/i18n.service';
 import { GameEngineService } from '../../services/game-engine.service';
+import { LLMProviderRegistryService } from '../../services/llm/llm-provider-registry.service';
 
 interface RoundGroup {
     round: number;
@@ -27,9 +28,11 @@ export class GameTimelineComponent {
 
     private i18n = inject(I18nService);
     private gameEngine = inject(GameEngineService);
+    private llmRegistry = inject(LLMProviderRegistryService);
 
     showGodView = computed(() => this.isGodView() || !this.perspectiveId());
     isUpdatingNotes = this.gameEngine.isUpdatingNotes;
+    supportsSpeedMetrics = computed(() => this.llmRegistry.getCapabilities().supportsSpeedMetrics);
 
     getPlayerName(id: string): string {
         const p = this.gameEngine.state().players.find(p => p.agent.id === id);
@@ -40,8 +43,10 @@ export class GameTimelineComponent {
     scrollFrame = viewChild<ElementRef<HTMLDivElement>>('scrollFrame');
 
     selectedPromptText = signal<string | null>(null);
+    selectedReasoningText = signal<string | null>(null);
     selectedRetryLogs = signal<string[] | null>(null);
     promptDialog = viewChild<ElementRef<HTMLDialogElement>>('promptDialog');
+    reasoningDialog = viewChild<ElementRef<HTMLDialogElement>>('reasoningDialog');
     retryLogsDialog = viewChild<ElementRef<HTMLDialogElement>>('retryLogsDialog');
 
     openPromptDialog(text: string) {
@@ -52,6 +57,19 @@ export class GameTimelineComponent {
     closePromptDialog() {
         this.promptDialog()?.nativeElement.close();
         this.selectedPromptText.set(null);
+    }
+
+    openReasoningDialog(reasoning?: string, thought?: string) {
+        let combined = '';
+        if (thought) combined += `${thought}`;
+
+        this.selectedReasoningText.set(combined.trim() || null);
+        this.reasoningDialog()?.nativeElement.showModal();
+    }
+
+    closeReasoningDialog() {
+        this.reasoningDialog()?.nativeElement.close();
+        this.selectedReasoningText.set(null);
     }
 
     openRetryLogsDialog(logs: string[]) {
@@ -67,6 +85,9 @@ export class GameTimelineComponent {
     onDialogClick(event: MouseEvent) {
         if (event.target === this.promptDialog()?.nativeElement) {
             this.closePromptDialog();
+        }
+        if (event.target === this.reasoningDialog()?.nativeElement) {
+            this.closeReasoningDialog();
         }
         if (event.target === this.retryLogsDialog()?.nativeElement) {
             this.closeRetryLogsDialog();

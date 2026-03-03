@@ -30,6 +30,9 @@ export class OpenAIService implements LLMProvider {
     private inputPrice = signal<number | undefined>(undefined);
     private cacheInputPrice = signal<number | undefined>(undefined);
     private outputPrice = signal<number | undefined>(undefined);
+    private useChatTemplateKwargs = signal<boolean>(false);
+    private enableThinking = signal<boolean>(false);
+    private reasoningEffort = signal<string>('low');
 
     init(config: LLMProviderConfig): void {
         const cleanStr = (val: any) => (typeof val === 'string' && val.trim() === '') ? undefined : val;
@@ -61,6 +64,16 @@ export class OpenAIService implements LLMProvider {
         if (config.outputPrice !== undefined) {
             this.outputPrice.set(cleanStr(config.outputPrice));
         }
+        const settings = config.additionalSettings || {};
+        if (settings['useChatTemplateKwargs'] !== undefined) {
+            this.useChatTemplateKwargs.set(settings['useChatTemplateKwargs'] as boolean);
+        }
+        if (settings['enableThinking'] !== undefined) {
+            this.enableThinking.set(settings['enableThinking'] as boolean);
+        }
+        if (settings['reasoningEffort'] !== undefined) {
+            this.reasoningEffort.set(settings['reasoningEffort'] as string);
+        }
     }
 
     isConfigured(): boolean {
@@ -72,7 +85,8 @@ export class OpenAIService implements LLMProvider {
             supportsContextCaching: false,
             supportsThinking: false,
             supportsStructuredOutput: true,
-            isLocalProvider: false
+            isLocalProvider: false,
+            supportsSpeedMetrics: false
         };
     }
 
@@ -134,6 +148,14 @@ export class OpenAIService implements LLMProvider {
                         schema: this.prepareSchema(config.responseSchema)
                     }
                 },
+            } : {}),
+            ...(this.useChatTemplateKwargs() ? {
+                extra_body: {
+                    chat_template_kwargs: {
+                        enable_thinking: this.enableThinking(),
+                        reasoning_effort: this.reasoningEffort()
+                    }
+                }
             } : {})
         };
 

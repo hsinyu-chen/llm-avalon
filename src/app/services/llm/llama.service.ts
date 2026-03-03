@@ -63,7 +63,8 @@ export class LlamaService implements LLMProvider {
             supportsContextCaching: false, // Local handles caching implicitly
             supportsThinking: false,
             supportsStructuredOutput: true, // Supported via Shim + JSON Mode
-            isLocalProvider: true
+            isLocalProvider: true,
+            supportsSpeedMetrics: true
         };
     }
 

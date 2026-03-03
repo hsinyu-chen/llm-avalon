@@ -42,6 +42,9 @@ export class GameEngineService {
     // Flag to prevent multiple parallel loops
     private _isRunningLoop = false;
 
+    // Track current game instance to terminate stale loops
+    private _gameInstanceId = 0;
+
     // Log of events (mostly for God-view and history)
     readonly history = signal<string[]>([]);
 
@@ -96,50 +99,77 @@ export class GameEngineService {
 
         this.log(this.i18n.translate('engine.gameStarted'));
 
+        // Increment instance ID to invalidate any previous loops
+        this._gameInstanceId++;
+        const currentInstance = this._gameInstanceId;
+
+        // Force reset loop flag if it was stuck
+        this._isRunningLoop = false;
+
         // Start the game loop in the background to avoid blocking the UI transition
-        setTimeout(() => this.runGameLoop(), 0);
+        setTimeout(() => this.runGameLoop(currentInstance), 0);
     }
 
-    private async runGameLoop() {
-        if (this._isRunningLoop) return;
+    private async runGameLoop(instanceId: number) {
+        if (this._isRunningLoop) {
+            console.warn('[GameLoop] Loop already running, skipping start.');
+            return;
+        }
         this._isRunningLoop = true;
+
+        const isStale = () => {
+            if (instanceId !== this._gameInstanceId) {
+                console.log(`[GameLoop] Instance ${instanceId} is stale (current: ${this._gameInstanceId}). Terminating.`);
+                return true;
+            }
+            return false;
+        };
 
         try {
             while (this._state().phase !== GamePhase.GameOver && !this._state().isPaused) {
+                if (isStale()) return;
+
                 const state = this._state();
                 this._state.update(s => ({ ...s, isThinking: false }));
 
                 // Standard yield to keep UI responsive and allow signal propagation
                 await new Promise(resolve => setTimeout(resolve, 0));
+                if (isStale()) return;
 
                 console.log(`[GameLoop] Phase: ${state.phase}, Round: ${state.currentRound}, FailedVotes: ${state.consecutiveFailedVotes}`);
 
                 switch (state.phase) {
                     case GamePhase.Night:
-                        await this.handleNightPhase();
+                        await this.handleNightPhase(instanceId);
+                        if (isStale()) return;
                         this.changePhase(GamePhase.Opening);
                         break;
 
                     case GamePhase.Opening:
-                        await this.handleOpeningPhase();
+                        await this.handleOpeningPhase(instanceId);
+                        if (isStale()) return;
                         this.changePhase(GamePhase.TeamProposal);
                         break;
 
                     case GamePhase.TeamProposal:
-                        const proposal = await this.handleTeamProposal();
+                        const proposal = await this.handleTeamProposal(instanceId);
+                        if (isStale()) return;
                         // Transition to discussion with the proposed team
                         this.changePhase(GamePhase.Discussion, { proposedTeamIds: proposal.teamIds });
                         break;
 
                     case GamePhase.Discussion:
-                        await this.handleDiscussion('DISCUSSION');
+                        await this.handleDiscussion('DISCUSSION', instanceId);
+                        if (isStale()) return;
                         this.changePhase(GamePhase.Vote);
                         break;
                     case GamePhase.Vote:
-                        const voteResult = await this.handleVote();
+                        const voteResult = await this.handleVote(instanceId);
+                        if (isStale()) return;
                         if (voteResult.passed) {
                             if (this._state().options?.excalibur) {
-                                await this.handleExcaliburAssignment();
+                                await this.handleExcaliburAssignment(instanceId);
+                                if (isStale()) return;
                             }
                             this.changePhase(GamePhase.Mission, { consecutiveFailedVotes: 0 });
                         } else {
@@ -154,7 +184,8 @@ export class GameEngineService {
                         break;
 
                     case GamePhase.Mission:
-                        const missionOutcome = await this.handleMission();
+                        const missionOutcome = await this.handleMission(instanceId);
+                        if (isStale()) return;
                         if (this._state().phase === GamePhase.GameOver) {
                             this.changePhase(GamePhase.GameDebrief);
                             break;
@@ -170,19 +201,23 @@ export class GameEngineService {
                             this.changePhase(GamePhase.GameDebrief);
                         } else if (successCount >= 3) {
                             this.log(`Good reaches 3 points! Entering Assassination phase.`);
-                            await this.updateAgentNotes();
+                            await this.updateAgentNotes(instanceId);
+                            if (isStale()) return;
                             this.changePhase(GamePhase.AssassinationDiscussion);
                         } else {
                             this.log(`Game continues. Current Score: Good ${successCount}, Evil ${failCount}`);
                             this.rotateLeader();
-                            await this.handleLadyOfTheLake();
+                            await this.handleLadyOfTheLake(instanceId);
+                            if (isStale()) return;
                             this.currentRoundChatLog = [];
                             this.changePhase(GamePhase.MissionDebrief, { proposedTeamIds: [] });
                         }
                         break;
                     case GamePhase.MissionDebrief:
-                        await this.handleMissionDebrief();
-                        await this.updateAgentNotes();
+                        await this.handleMissionDebrief(instanceId);
+                        if (isStale()) return;
+                        await this.updateAgentNotes(instanceId);
+                        if (isStale()) return;
                         const nextRound = this._state().currentRound + 1;
                         this.addEvent({ type: 'ROUND_START', round: nextRound });
                         this.changePhase(GamePhase.TeamProposal, {
@@ -192,17 +227,20 @@ export class GameEngineService {
                         break;
 
                     case GamePhase.AssassinationDiscussion:
-                        await this.handleAssassinationDiscussion();
+                        await this.handleAssassinationDiscussion(instanceId);
+                        if (isStale()) return;
                         this.changePhase(GamePhase.Assassination);
                         break;
 
                     case GamePhase.Assassination:
-                        await this.handleAssassination();
+                        await this.handleAssassination(instanceId);
+                        if (isStale()) return;
                         this.changePhase(GamePhase.GameDebrief);
                         break;
 
                     case GamePhase.GameDebrief:
-                        await this.handleGameDebrief();
+                        await this.handleGameDebrief(instanceId);
+                        if (isStale()) return;
                         this.changePhase(GamePhase.GameOver);
                         break;
 
@@ -223,7 +261,10 @@ export class GameEngineService {
         }
     }
 
-    private async handleNightPhase() {
+    private async handleNightPhase(instanceId: number) {
+        const isStale = () => instanceId !== this._gameInstanceId;
+        if (isStale()) return;
+
         this.log(this.i18n.translate('engine.rolesRevealed'));
         const state = this._state();
         const players = state.players;
@@ -256,14 +297,17 @@ export class GameEngineService {
         }
     }
 
-    private async handleOpeningPhase() {
+    private async handleOpeningPhase(instanceId: number) {
+        const isStale = () => instanceId !== this._gameInstanceId;
+        if (isStale()) return;
+
         this.log('Phase OPENING: Starting self-introductions...');
         const state = this._state();
         const startIndex = state.currentLeaderIndex;
         const playerCount = state.players.length;
 
         for (let i = 0; i < playerCount; i++) {
-            if (this._state().isPaused) return;
+            if (this._state().isPaused || isStale()) return;
 
             const player = state.players[(startIndex + i) % playerCount];
 
@@ -316,7 +360,7 @@ export class GameEngineService {
                     leaderId: state.players[state.currentLeaderIndex].agent.id,
                     discussionRound: 0,
                     maxDiscussionRounds: 1
-                }, (chunk, field) => {
+                }, (chunk, field, metadata) => {
                     this._state.update(s => {
                         const newEvents = [...s.events];
                         const ev = newEvents[eventIndex];
@@ -324,7 +368,13 @@ export class GameEngineService {
                             ev.isThinking = false;
                             if (field === 'speech') ev.message += chunk;
                             else if (field === 'reasoning') ev.reasoning = (ev.reasoning || '') + chunk;
+                            else if (field === 'thought') ev.thought = (ev.thought || '') + chunk;
                             else if (field === 'self_check') ev.self_check = (ev.self_check || '') + chunk;
+
+                            if (metadata) {
+                                if (metadata.promptSpeed) ev.promptSpeed = metadata.promptSpeed;
+                                if (metadata.completionSpeed) ev.completionSpeed = metadata.completionSpeed;
+                            }
                         }
                         return { ...s, events: newEvents };
                     });
@@ -364,10 +414,13 @@ export class GameEngineService {
             }
         }
 
-        if (this._state().isPaused) return;
+        if (this._state().isPaused || isStale()) return;
     }
 
-    private async handleTeamProposal(): Promise<{ teamIds: string[] }> {
+    private async handleTeamProposal(instanceId: number): Promise<{ teamIds: string[] }> {
+        const isStale = () => instanceId !== this._gameInstanceId;
+        if (isStale()) return { teamIds: [] };
+
         const state = this._state();
         const leader = state.players[state.currentLeaderIndex];
 
@@ -413,13 +466,14 @@ export class GameEngineService {
                 teamSize: GAME_CONFIGS[state.players.length].missionSizes[state.currentRound - 1],
                 playerIds: state.players.map(p => p.agent.id),
                 playerNames: Object.fromEntries(state.players.map(p => [p.agent.id, p.agent.name]))
-            }, (chunk, field) => {
+            }, (chunk, field, metadata) => {
                 this._state.update(s => {
                     const newEvents = [...s.events];
                     const ev = newEvents[eventIndex];
                     if (ev && ev.type === 'TEAM_PROPOSAL') {
                         ev.isThinking = false;
                         if (field === 'reasoning') ev.reasoning = (ev.reasoning || '') + chunk;
+                        else if (field === 'thought') ev.thought = (ev.thought || '') + chunk;
                         else if (field === 'self_check') ev.self_check = (ev.self_check || '') + chunk;
                         else if (field === 'situation_assessment') {
                             ev.situation_assessment = (ev.situation_assessment || '') + chunk;
@@ -428,6 +482,11 @@ export class GameEngineService {
                         else if (field === 'action_strategy') {
                             ev.action_strategy = (ev.action_strategy || '') + chunk;
                             if ((leader.agent as any).updateStreamingStrategy) (leader.agent as any).updateStreamingStrategy(chunk);
+                        }
+
+                        if (metadata) {
+                            if (metadata.promptSpeed) ev.promptSpeed = metadata.promptSpeed;
+                            if (metadata.completionSpeed) ev.completionSpeed = metadata.completionSpeed;
                         }
                     }
                     return { ...s, events: newEvents };
@@ -463,7 +522,10 @@ export class GameEngineService {
         }
     }
 
-    private async handleExcaliburAssignment() {
+    private async handleExcaliburAssignment(instanceId: number) {
+        const isStale = () => instanceId !== this._gameInstanceId;
+        if (isStale()) return;
+
         const state = this._state();
         const leader = state.players[state.currentLeaderIndex];
         const teamIds = state.proposedTeamIds;
@@ -516,7 +578,10 @@ export class GameEngineService {
         return validTeam.slice(0, teamSize);
     }
 
-    private async handleDiscussion(phase: 'DISCUSSION' | 'MISSION_DEBRIEF' | 'ASSASSINATION_DISCUSSION') {
+    private async handleDiscussion(phase: 'DISCUSSION' | 'MISSION_DEBRIEF' | 'ASSASSINATION_DISCUSSION', instanceId: number) {
+        const isStale = () => instanceId !== this._gameInstanceId;
+        if (isStale()) return;
+
         const state = this._state();
         this.log(`Phase ${phase}: ${state.discussion ? 'Resuming' : 'Starting'} discussion...`);
 
@@ -534,7 +599,7 @@ export class GameEngineService {
         const lastPersonSpeechCount = state.discussion?.lastPersonSpeechCount ?? {};
 
         while (passedAgentIds.size < state.players.length && roundNumber <= maxRounds) {
-            if (this._state().isPaused) return;
+            if (this._state().isPaused || isStale()) return;
 
             // --- Add Round Marker Event ---
             const currentAttempt = state.consecutiveFailedVotes;
@@ -569,7 +634,7 @@ export class GameEngineService {
             const playerCount = state.players.length;
 
             for (let i = 0; i < playerCount; i++) {
-                if (this._state().isPaused) return;
+                if (this._state().isPaused || isStale()) return;
 
                 const player = state.players[(startIndex + i) % playerCount];
                 if (passedAgentIds.has(player.agent.id)) {
@@ -654,7 +719,7 @@ export class GameEngineService {
                         discussionRound: roundNumber,
                         maxDiscussionRounds: maxRounds,
                         assassinId: phase === 'ASSASSINATION_DISCUSSION' ? state.players.find(p => p.role === Role.Assassin)?.agent.id : undefined
-                    } as SpeakContext, (chunk, field) => {
+                    } as SpeakContext, (chunk, field, metadata) => {
                         this._state.update(s => {
                             const newEvents = [...s.events];
                             const ev = newEvents[eventIndex];
@@ -663,6 +728,7 @@ export class GameEngineService {
                                 if (chunk === '') { // handle reset command from agent
                                     if (field === 'speech') ev.message = '';
                                     else if (field === 'reasoning') ev.reasoning = '';
+                                    else if (field === 'thought') ev.thought = '';
                                     else if (field === 'self_check') ev.self_check = '';
                                     else if (field === 'situation_assessment') {
                                         ev.situation_assessment = '';
@@ -677,6 +743,7 @@ export class GameEngineService {
                                         ev.message += chunk;
                                     }
                                     else if (field === 'reasoning') ev.reasoning = (ev.reasoning || '') + chunk;
+                                    else if (field === 'thought') ev.thought = (ev.thought || '') + chunk;
                                     else if (field === 'self_check') ev.self_check = (ev.self_check || '') + chunk;
                                     else if (field === 'situation_assessment') {
                                         ev.situation_assessment = (ev.situation_assessment || '') + chunk;
@@ -690,6 +757,11 @@ export class GameEngineService {
                                             (player.agent as any).updateStreamingStrategy(chunk);
                                         }
                                     }
+                                }
+
+                                if (metadata) {
+                                    if (metadata.promptSpeed) ev.promptSpeed = metadata.promptSpeed;
+                                    if (metadata.completionSpeed) ev.completionSpeed = metadata.completionSpeed;
                                 }
                             }
                             return { ...s, events: newEvents };
@@ -779,14 +851,17 @@ export class GameEngineService {
         this.updateState({ discussion: null });
     }
 
-    private async handleMissionDebrief() {
-        await this.handleDiscussion('MISSION_DEBRIEF');
+    private async handleMissionDebrief(instanceId: number) {
+        await this.handleDiscussion('MISSION_DEBRIEF', instanceId);
     }
 
     // Store chat log between discussion and vote phases
     private currentRoundChatLog: SpeechEntry[] = [];
 
-    private async handleVote(): Promise<{ passed: boolean, failCount: number }> {
+    private async handleVote(instanceId: number): Promise<{ passed: boolean, failCount: number }> {
+        const isStale = () => instanceId !== this._gameInstanceId;
+        if (isStale()) return { passed: false, failCount: 0 };
+
         const state = this._state();
         console.log(`[GameEngine] handleVote start: round=${state.currentRound}, failCount=${state.consecutiveFailedVotes}`);
         const players = state.players;
@@ -867,7 +942,10 @@ export class GameEngineService {
         }
     }
 
-    private async handleMission(): Promise<{ succeeded: boolean, failsCount: number }> {
+    private async handleMission(instanceId: number): Promise<{ succeeded: boolean, failsCount: number }> {
+        const isStale = () => instanceId !== this._gameInstanceId;
+        if (isStale()) return { succeeded: false, failsCount: 0 };
+
         const state = this._state();
         const teamIds = state.proposedTeamIds;
         const onMission = state.players.filter(p => teamIds.includes(p.agent.id));
@@ -912,7 +990,7 @@ export class GameEngineService {
             // -- Excalibur Phase --
             let finalResults = [...initialChoices];
             if (state.options?.excalibur && state.excaliburHolder) {
-                finalResults = await this.handleExcaliburCardFlip(state.excaliburHolder, onMission, initialChoices);
+                finalResults = await this.handleExcaliburCardFlip(state.excaliburHolder, onMission, initialChoices, instanceId);
             }
 
             // Shuffle results to anonymize
@@ -961,7 +1039,10 @@ export class GameEngineService {
         }
     }
 
-    private async handleExcaliburCardFlip(excaliburHolderId: string, onMission: PlayerState[], results: boolean[]): Promise<boolean[]> {
+    private async handleExcaliburCardFlip(excaliburHolderId: string, onMission: PlayerState[], results: boolean[], instanceId: number): Promise<boolean[]> {
+        const isStale = () => instanceId !== this._gameInstanceId;
+        if (isStale()) return results;
+
         const state = this._state();
         const holder = state.players.find(p => p.agent.id === excaliburHolderId);
         if (!holder) return results;
@@ -1006,7 +1087,10 @@ export class GameEngineService {
         return results;
     }
 
-    private async handleAssassinationDiscussion() {
+    private async handleAssassinationDiscussion(instanceId: number) {
+        const isStale = () => instanceId !== this._gameInstanceId;
+        if (isStale()) return;
+
         const state = this._state();
 
         // Find the Assassin
@@ -1029,10 +1113,13 @@ export class GameEngineService {
         });
 
         // Use the generic discussion handler
-        await this.handleDiscussion('ASSASSINATION_DISCUSSION');
+        await this.handleDiscussion('ASSASSINATION_DISCUSSION', instanceId);
     }
 
-    private async handleAssassination() {
+    private async handleAssassination(instanceId: number) {
+        const isStale = () => instanceId !== this._gameInstanceId;
+        if (isStale()) return;
+
         const state = this._state();
 
         const assassinPlayer = state.players.find(p => p.role === Role.Assassin);
@@ -1080,6 +1167,7 @@ export class GameEngineService {
                     if (ev && ev.type === 'ASSASSINATION') {
                         ev.isThinking = false;
                         if (field === 'reasoning') ev.reasoning = (ev.reasoning || '') + chunk;
+                        else if (field === 'thought') ev.thought = (ev.thought || '') + chunk;
                         else if (field === 'self_check') ev.self_check = (ev.self_check || '') + chunk;
                         else if (field === 'situation_assessment') ev.situation_assessment = (ev.situation_assessment || '') + chunk;
                         else if (field === 'action_strategy') ev.action_strategy = (ev.action_strategy || '') + chunk;
@@ -1129,12 +1217,15 @@ export class GameEngineService {
         }
     }
 
-    private async handleGameDebrief() {
+    private async handleGameDebrief(instanceId: number) {
+        const isStale = () => instanceId !== this._gameInstanceId;
+        if (isStale()) return;
+
         this.log('Game Debrief phase: Players share their reflections...');
         const state = this._state();
 
         for (const player of state.players) {
-            if (this._state().isPaused) return;
+            if (this._state().isPaused || isStale()) return;
 
             // Skip human player reflections
             if (player.agent.modelName === 'Human') {
@@ -1199,6 +1290,7 @@ export class GameEngineService {
                                 ev.message += chunk;
                             }
                             else if (field === 'reasoning') ev.reasoning = (ev.reasoning || '') + chunk;
+                            else if (field === 'thought') ev.thought = (ev.thought || '') + chunk;
                             else if (field === 'self_check') ev.self_check = (ev.self_check || '') + chunk;
                             else if (field === 'situation_assessment') {
                                 ev.situation_assessment = (ev.situation_assessment || '') + chunk;
@@ -1240,7 +1332,10 @@ export class GameEngineService {
         }
     }
 
-    private async updateAgentNotes() {
+    private async updateAgentNotes(instanceId: number) {
+        const isStale = () => instanceId !== this._gameInstanceId;
+        if (isStale()) return;
+
         const state = this._state();
         this.log('Agents are updating their notes...');
 
@@ -1292,7 +1387,10 @@ export class GameEngineService {
         }
     }
 
-    private async handleLadyOfTheLake() {
+    private async handleLadyOfTheLake(instanceId: number) {
+        const isStale = () => instanceId !== this._gameInstanceId;
+        if (isStale()) return;
+
         const state = this._state();
         const holderId = state.ladyHolder;
         if (!holderId || !state.options?.lady) return;
@@ -1457,18 +1555,19 @@ export class GameEngineService {
             ladyHolder: null,
             ladyHistory: [],
             events: [],
-            isPaused: false,
-            isThinking: false,
             isUpdatingNotes: false,
+            signaledThisRoundIds: [],
         });
         this.history.set([]);
+        this._gameInstanceId++; // Invalidate stale loops
+        this._isRunningLoop = false;
     }
 
     resumeGame() {
         if (!this._state().isPaused) return;
         this._state.update(s => ({ ...s, error: null, isPaused: false }));
         this.log('Resuming game...');
-        setTimeout(() => this.runGameLoop(), 0);
+        setTimeout(() => this.runGameLoop(this._gameInstanceId), 0);
     }
 
     async retryEvent(eventToRetry: GameEvent) {
@@ -1488,7 +1587,7 @@ export class GameEngineService {
         });
 
         this.log(`Retrying event: ${eventToRetry.type}...`);
-        setTimeout(() => this.runGameLoop(), 0);
+        setTimeout(() => this.runGameLoop(this._gameInstanceId), 0);
     }
 
     addEvent(event: GameEvent) {

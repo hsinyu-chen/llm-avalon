@@ -53,6 +53,26 @@ import { TranslatePipe } from '../../../i18n/translate.pipe';
         </div>
       </div>
 
+      <div class="form-group-toggle">
+        <label for="openaiUseChatKwargs">Use Chat Template Kwargs (OpenRouter/etc):</label>
+        <input id="openaiUseChatKwargs" type="checkbox" [(ngModel)]="config.settings.additionalSettings!['useChatTemplateKwargs']" (ngModelChange)="configChanged.emit()">
+      </div>
+
+      <div class="extra-kwargs-panel" *ngIf="config.settings.additionalSettings!['useChatTemplateKwargs']">
+        <div class="form-group-inline">
+          <label for="openaiEnableThinking">Enable Thinking:</label>
+          <input id="openaiEnableThinking" type="checkbox" [(ngModel)]="config.settings.additionalSettings!['enableThinking']" (ngModelChange)="configChanged.emit()">
+        </div>
+        <div class="form-group-inline">
+          <label for="openaiReasoningEffort">Reasoning Effort:</label>
+          <select id="openaiReasoningEffort" [(ngModel)]="config.settings.additionalSettings!['reasoningEffort']" (ngModelChange)="configChanged.emit()">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+      </div>
+
       <div class="form-group preset-group" *ngIf="isOpenAIUrl()">
         <label for="openaiPreset">{{ 'settings.presetModel' | translate }}</label>
         <select id="openaiPreset" (change)="onPresetChange($event)">
@@ -99,6 +119,24 @@ import { TranslatePipe } from '../../../i18n/translate.pipe';
         &:focus { border-color: #58a6ff; outline: none; }
       }
     }
+    .form-group-toggle {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+      label { color: #8b949e; font-size: 0.9em; font-weight: 500; cursor: pointer; }
+      input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+    }
+    .extra-kwargs-panel {
+      background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 12px; margin-bottom: 16px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .form-group-inline {
+      display: flex; align-items: center; gap: 12px;
+      label { color: #8b949e; font-size: 0.85em; width: 120px; }
+      input[type="checkbox"] { width: 16px; height: 16px; }
+      select {
+        flex: 1; padding: 6px; background: #0d1117; border: 1px solid #30363d;
+        border-radius: 4px; color: white; font-size: 0.9em;
+      }
+    }
   `]
 })
 export class OpenAIConfigComponent {
@@ -106,6 +144,12 @@ export class OpenAIConfigComponent {
   configChanged = output<void>();
 
   presets = OPENAI_PRESETS;
+
+  constructor() {
+    if (!this.config.settings.additionalSettings) {
+      this.config.settings.additionalSettings = {};
+    }
+  }
 
   isOpenAIUrl = computed(() => {
     const url = this.config.settings.baseUrl || '';

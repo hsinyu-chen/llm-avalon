@@ -44,6 +44,20 @@
                             <button class="debug-prompt-btn retry-logs-btn"
                                 (click)="openRetryLogsDialog(event.retryLogs)" title="View Retry Logs">📜</button>
                             }
+                            @if (event.reasoning || event.thought) {
+                            <button class="debug-prompt-btn"
+                                (click)="openReasoningDialog(event.reasoning, event.thought)"
+                                title="View Reasoning">🧠</button>
+                            }
+                            }
+                            @if (supportsSpeedMetrics()) {
+                            @if (event.promptSpeed) {
+                            <span class="speed-badge pp-speed">PP: {{ event.promptSpeed.toFixed(1) }} t/s</span>
+                            }
+                            @if (event.completionSpeed) {
+                            <span class="speed-badge completion-speed">Out: {{ event.completionSpeed.toFixed(1) }}
+                                t/s</span>
+                            }
                             }
                             @if (getAgentModelName(event.playerName); as modelName) {
                             <div class="model-badge">{{ modelName }}</div>
@@ -59,12 +73,16 @@
                         <div class="error-message">{{ event.error }}</div>
                         }
                         @if (showGodView()) {
-                        @if (event.self_check || event.reasoning || event.isThinking || (event.status === 'pending' &&
+                        @if (event.self_check || event.reasoning || event.thought || event.isThinking || (event.status
+                        === 'pending' &&
                         !event.message)) {
                         <div class="inner-thoughts" [class.no-border]="!event.message"
                             [class.with-message]="event.message">
+                            @if (event.thought && !event.message) {
+                            <div class="thought-line native-cot">{{ event.thought }}</div>
+                            }
                             @if (event.reasoning) {
-                            <span>{{ event.reasoning }}</span>
+                            <div class="thought-line formal-reasoning">{{ event.reasoning }}</div>
                             }
                             @if (event.status === 'pending' && !event.message) {
                             <span class="spinner mini"></span>
@@ -105,6 +123,19 @@
                         <button class="debug-prompt-btn retry-logs-btn" (click)="openRetryLogsDialog(event.retryLogs)"
                             title="View Retry Logs">📜</button>
                         }
+                        @if (event.reasoning || event.thought) {
+                        <button class="debug-prompt-btn" (click)="openReasoningDialog(event.reasoning, event.thought)"
+                            title="View Reasoning">🧠</button>
+                        }
+                        }
+                        @if (supportsSpeedMetrics()) {
+                        @if (event.promptSpeed) {
+                        <span class="speed-badge pp-speed">PP: {{ event.promptSpeed.toFixed(1) }} t/s</span>
+                        }
+                        @if (event.completionSpeed) {
+                        <span class="speed-badge completion-speed">Out: {{ event.completionSpeed.toFixed(1) }}
+                            t/s</span>
+                        }
                         }
                         @if (getAgentModelName(event.leaderName); as modelName) {
                         <div class="model-badge">{{ modelName }}</div>
@@ -131,11 +162,15 @@
                             }
                         </div>
                         @if (showGodView()) {
-                        @if (event.self_check || event.reasoning || event.isThinking || (event.status === 'pending' &&
+                        @if (event.self_check || event.reasoning || event.thought || event.isThinking || (event.status
+                        === 'pending' &&
                         event.teamIds.length === 0)) {
                         <div class="inner-thoughts" [class.no-border]="event.teamIds.length === 0"
                             [class.with-message]="event.teamIds.length > 0">
-                            @if (event.reasoning) { <span>{{ event.reasoning }}</span> }
+                            @if (event.thought && event.teamIds.length === 0) { <div class="thought-line native-cot">{{
+                                event.thought }}</div> }
+                            @if (event.reasoning) { <div class="thought-line formal-reasoning">{{ event.reasoning }}
+                            </div> }
                             @if (event.status === 'pending' && event.teamIds.length === 0) {
                             <span class="spinner mini"></span>
                             }
@@ -290,6 +325,19 @@
                         <button class="debug-prompt-btn retry-logs-btn" (click)="openRetryLogsDialog(event.retryLogs)"
                             title="View Retry Logs">📜</button>
                         }
+                        @if (event.reasoning || event.thought) {
+                        <button class="debug-prompt-btn" (click)="openReasoningDialog(event.reasoning, event.thought)"
+                            title="View Reasoning">🧠</button>
+                        }
+                        }
+                        @if (supportsSpeedMetrics()) {
+                        @if (event.promptSpeed) {
+                        <span class="speed-badge pp-speed">PP: {{ event.promptSpeed.toFixed(1) }} t/s</span>
+                        }
+                        @if (event.completionSpeed) {
+                        <span class="speed-badge completion-speed">Out: {{ event.completionSpeed.toFixed(1) }}
+                            t/s</span>
+                        }
                         }
                         @if (getAgentModelName(event.playerName); as modelName) {
                         <div class="model-badge">{{ modelName }}</div>
@@ -317,11 +365,15 @@
                         </div>
                         }
                         @if (showGodView()) {
-                        @if (event.self_check || event.reasoning || event.isThinking || (event.status === 'pending' &&
+                        @if (event.self_check || event.reasoning || event.thought || event.isThinking || (event.status
+                        === 'pending' &&
                         !event.targetId)) {
                         <div class="inner-thoughts" [class.no-border]="!event.targetId"
                             [class.with-message]="!!event.targetId">
-                            @if (event.reasoning) { <span>{{ event.reasoning }}</span> }
+                            @if (event.thought && !event.targetId) { <div class="thought-line native-cot">{{
+                                event.thought }}</div> }
+                            @if (event.reasoning) { <div class="thought-line formal-reasoning">{{ event.reasoning }}
+                            </div> }
                             @if (event.status === 'pending' && !event.targetId) {
                             <span class="spinner mini"></span>
                             }
@@ -379,6 +431,20 @@
                             <button class="debug-prompt-btn" (click)="openPromptDialog(event.promptText)"
                                 title="View Prompt">🔍</button>
                             }
+                            @if (event.reasoning || event.thought) {
+                            <button class="debug-prompt-btn"
+                                (click)="openReasoningDialog(event.reasoning, event.thought)"
+                                title="View Reasoning">🧠</button>
+                            }
+                            }
+                            @if (supportsSpeedMetrics()) {
+                            @if (event.promptSpeed) {
+                            <span class="speed-badge pp-speed">PP: {{ event.promptSpeed.toFixed(1) }} t/s</span>
+                            }
+                            @if (event.completionSpeed) {
+                            <span class="speed-badge completion-speed">Out: {{ event.completionSpeed.toFixed(1) }}
+                                t/s</span>
+                            }
                             }
                             @if (getAgentModelName(event.playerName); as modelName) {
                             <div class="model-badge">{{ modelName }}</div>
@@ -399,12 +465,16 @@
                         <div class="error-message">{{ event.error }}</div>
                         }
                         @if (showGodView()) {
-                        @if (event.self_check || event.reasoning || event.isThinking || (event.status === 'pending' &&
+                        @if (event.self_check || event.reasoning || event.thought || event.isThinking || (event.status
+                        === 'pending' &&
                         !event.message)) {
                         <div class="inner-thoughts" [class.no-border]="!event.message"
                             [class.with-message]="event.message">
+                            @if (event.thought && !event.message) {
+                            <div class="thought-line native-cot">{{ event.thought }}</div>
+                            }
                             @if (event.reasoning) {
-                            <span>{{ event.reasoning }}</span>
+                            <div class="thought-line formal-reasoning">{{ event.reasoning }}</div>
                             }
                             @if (event.status === 'pending' && !event.message) {
                             <span class="spinner mini"></span>
@@ -467,4 +537,16 @@
             <pre><code>{{ selectedRetryLogs() | json }}</code></pre>
         </div>
     </dialog>
+
+    <dialog #reasoningDialog class="prompt-dialog" (click)="onDialogClick($event)"
+        (keydown.escape)="closeReasoningDialog()" tabindex="-1">
+        <div class="dialog-header">
+            <h4>Reasoning (CoT)</h4>
+            <button class="close-btn" (click)="closeReasoningDialog()">✕</button>
+        </div>
+        <div class="dialog-body">
+            <div class="reasoning-text">{{ selectedReasoningText() }}</div>
+        </div>
+    </dialog>
 </div>
+```

@@ -810,7 +810,7 @@ export class LLMAgent implements IAgent {
         config: LLMGenerateConfig,
         validate: (parsed: T) => string | null,
         actionName: string,
-        onFieldChunk?: (chunk: string, field: string) => void
+        onFieldChunk?: (chunk: string, field: string, metadata?: LLMUsageMetadata) => void
     ): Promise<T & { retryLogs?: string[] }> {
         const provider = await this.getProvider();
         const contents: LLMContent[] = [{ role: 'user', parts: [{ text: prompt }] }];
@@ -898,7 +898,7 @@ export class LLMAgent implements IAgent {
     }
 
     /** Stream a response from the provider given a conversation. */
-    private async streamLLM(provider: LLMProvider, contents: LLMContent[], config: LLMGenerateConfig, onFieldChunk?: (chunk: string, field: string) => void, retryLogs: string[] = []): Promise<string> {
+    private async streamLLM(provider: LLMProvider, contents: LLMContent[], config: LLMGenerateConfig, onFieldChunk?: (chunk: string, field: string, metadata?: LLMUsageMetadata) => void, retryLogs: string[] = []): Promise<string> {
         let fullText = '';
         let finalUsageMetadata: LLMUsageMetadata | undefined;
         let streamSucceeded = false;
@@ -947,14 +947,13 @@ export class LLMAgent implements IAgent {
                         }
 
                         if (chunk.text) {
-
+                            if (chunk.thought) {
+                                if (onFieldChunk) onFieldChunk(chunk.text, 'thought', chunk.usageMetadata);
+                                continue;
+                            }
 
                             const prevFullText = fullText;
-                            // Critical Fix: Do NOT append thought chunks to fullText if they are marked as thoughts.
-                            // fullText is used for JSON parsing, and thoughts will break it.
-                            if (!chunk.thought) {
-                                fullText += chunk.text;
-                            }
+                            fullText += chunk.text;
 
                             if (onFieldChunk) {
                                 let i = Math.max(lastReportedLength, prevFullText.length);
@@ -1004,10 +1003,10 @@ export class LLMAgent implements IAgent {
                                                 i++;
                                                 continue;
                                             }
-                                            onFieldChunk(char, currentField === 'message' ? 'speech' : currentField);
+                                            onFieldChunk(char, currentField === 'message' ? 'speech' : currentField, chunk.usageMetadata);
                                         } else {
                                             const c = char === 'n' ? '\n' : (char === 't' ? '\t' : char);
-                                            onFieldChunk(c, currentField === 'message' ? 'speech' : currentField);
+                                            onFieldChunk(c, currentField === 'message' ? 'speech' : currentField, chunk.usageMetadata);
                                             escaped = false;
                                         }
                                         i++;

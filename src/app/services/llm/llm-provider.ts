@@ -140,6 +140,8 @@ export interface LLMProviderCapabilities {
     supportsStructuredOutput: boolean;
     /** Provider runs locally (no API costs) */
     isLocalProvider: boolean;
+    /** Provider supports real-time speed metrics (tokens/s) */
+    supportsSpeedMetrics: boolean;
 }
 
 // ============================================================================
@@ -298,8 +300,6 @@ export interface LLMProviderConfig {
     modelId?: string;
     /** Base URL for the API endpoint (for self-hosted providers) */
     baseUrl?: string;
-    /** Thinking level for model generation */
-    thinkingLevel?: string;
     /** Temperature setting for generation */
     temperature?: number;
     /** Frequency penalty */
@@ -308,14 +308,14 @@ export interface LLMProviderConfig {
     presence_penalty?: number;
     /** Max output tokens */
     maxOutputTokens?: number;
-    /** Whether to enable context caching (Gemini-specific) */
-    enableCache?: boolean;
     /** Custom input token price (per 1M) */
     inputPrice?: number;
     /** Custom cache input token price (per 1M) */
     cacheInputPrice?: number;
     /** Custom output token price (per 1M) */
     outputPrice?: number;
+    /** Additional provider-specific settings */
+    additionalSettings?: Record<string, number | string | boolean | null | undefined>;
 }
 /**
  * Complete LLM configuration profile stored in IndexedDB.

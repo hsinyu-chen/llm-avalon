@@ -1,6 +1,7 @@
 import { Role, Team } from './role';
 import { MissionRecord, GameOptions } from './game-state';
 import { GameEvent } from './game-event';
+import { LLMUsageMetadata } from '../services/llm/llm-provider';
 
 // =============================================================================
 //  Base Context — shared by ALL agent methods (except NightPhaseInfo)
@@ -233,12 +234,12 @@ export interface IAgent {
     getLastStrategy?(): string;
 
     onNightPhase(info: NightPhaseInfo): Promise<void>;
-    proposeTeam(context: TeamProposalContext, onChunk?: (chunk: string, field: 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<ProposeTeamAction>;
-    vote(context: VoteContext, onChunk?: (chunk: string, field: 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<VoteAction>;
-    executeMission(context: MissionContext, onChunk?: (chunk: string, field: 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<MissionAction>;
-    assassinate(context: AssassinContext, onChunk?: (chunk: string, field: 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<AssassinateAction>;
-    speak(context: SpeakContext, onChunk?: (chunk: string, field: 'speech' | 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<SpeechAct>;
-    shareGameReflection(context: GameReflectionContext, onChunk?: (chunk: string, field: 'reflection' | 'self_check' | 'reasoning' | 'situation_assessment' | 'action_strategy') => void): Promise<{ reflection: string; self_check?: string; reasoning?: string; situation_assessment?: string; action_strategy?: string; promptText?: string; retryLogs?: string[] }>;
+    proposeTeam(context: TeamProposalContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<ProposeTeamAction>;
+    vote(context: VoteContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<VoteAction>;
+    executeMission(context: MissionContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<MissionAction>;
+    assassinate(context: AssassinContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<AssassinateAction>;
+    speak(context: SpeakContext, onChunk?: (chunk: string, field: 'speech' | 'thought' | 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<SpeechAct>;
+    shareGameReflection(context: GameReflectionContext, onChunk?: (chunk: string, field: 'reflection' | 'thought' | 'self_check' | 'reasoning' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<{ reflection: string; self_check?: string; reasoning?: string; situation_assessment?: string; action_strategy?: string; promptText?: string; retryLogs?: string[] }>;
     onSystemMessage(message: string): Promise<void>;
     useExcalibur(context: ExcaliburContext): Promise<string | null>;
     useLadyOfTheLake(context: LadyContext): Promise<string | null>;
