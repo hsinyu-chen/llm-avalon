@@ -11,13 +11,13 @@ import { GameBoardComponent } from '../../components/game-board/game-board.compo
         @if (phase() === 'SETUP') {
             <app-game-setup></app-game-setup>
         } @else {
-            <app-game-board></app-game-board>
+            <app-game-board [state]="engine.state()" (reset)="engine.reset()"></app-game-board>
         }
     `,
     styles: [`:host { display: flex; flex-direction: column; flex: 1; overflow: hidden; }`],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class GamePageComponent {
-    private engine = inject(GameEngineService);
+    protected engine = inject(GameEngineService);
     phase = this.engine.phase;
 }

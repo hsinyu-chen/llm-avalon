@@ -1,6 +1,5 @@
-import { Component, inject, computed, signal, effect, ChangeDetectionStrategy, DestroyRef } from '@angular/core';
-import { GameEngineService } from '../../services/game-engine.service';
-import { PlayerState } from '../../models/game-state';
+import { Component, inject, computed, signal, effect, ChangeDetectionStrategy, DestroyRef, input, output } from '@angular/core';
+import { PlayerState, GameState } from '../../models/game-state';
 import { PlayerListComponent } from '../player-list/player-list.component';
 import { GameTimelineComponent } from '../game-timeline/game-timeline.component';
 import { NgClass, DecimalPipe } from '@angular/common';
@@ -30,13 +29,15 @@ import { HumanInteractionComponent } from './human-interaction/human-interaction
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class GameBoardComponent {
-    private engine = inject(GameEngineService);
     private i18n = inject(I18nService);
     private destroyRef = inject(DestroyRef);
 
-    state = this.engine.state;
+    state = input.required<GameState>();
+    isReplay = input<boolean>(false);
+    reset = output<void>();
+
     events = computed(() => this.state().events || []);
-    currentRound = this.engine.currentRound;
+    currentRound = computed(() => this.state().currentRound);
     perspectiveId = computed(() => this.state().perspectiveId ?? null);
 
     selectedPlayer = signal<PlayerState | null>(null);
@@ -95,7 +96,7 @@ export class GameBoardComponent {
     });
 
     getPlayerName(id: string): string {
-        const p = this.engine.state().players.find(p => p.agent.id === id);
+        const p = this.state().players.find(p => p.agent.id === id);
         return p ? p.agent.name : id;
     }
 
@@ -154,8 +155,8 @@ export class GameBoardComponent {
     });
 
 
-    reset() {
-        this.engine.reset();
+    resetGame() {
+        this.reset.emit();
     }
 
 

@@ -1,16 +1,17 @@
-import { Component, inject, signal, ChangeDetectionStrategy, effect } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy, effect, computed } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GameRecordService } from '../../services/game-record.service';
 import { GameRecord } from '../../models/game-record';
-import { GameTimelineComponent } from '../../components/game-timeline/game-timeline.component';
+import { GameBoardComponent } from '../../components/game-board/game-board.component';
 import { TranslatePipe } from '../../i18n/translate.pipe';
 import { I18nService } from '../../i18n/i18n.service';
 import { DatePipe } from '@angular/common';
+import { recordToGameState } from '../../utils/record-converter';
 
 @Component({
     selector: 'app-game-replay',
     standalone: true,
-    imports: [GameTimelineComponent, TranslatePipe, DatePipe],
+    imports: [GameBoardComponent, TranslatePipe, DatePipe],
     templateUrl: './game-replay.component.html',
     styleUrl: './game-replay.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -24,7 +25,10 @@ export class GameReplayComponent {
     record = signal<GameRecord | null>(null);
     loading = signal(true);
 
-    playerRoles = signal<Record<string, { role: string; team: string }>>({});
+    replayedState = computed(() => {
+        const rec = this.record();
+        return rec ? recordToGameState(rec) : null;
+    });
 
     constructor() {
         effect(() => {
@@ -41,11 +45,6 @@ export class GameReplayComponent {
         const record = await this.recordService.getById(id);
         if (record) {
             this.record.set(record);
-            const roles: Record<string, { role: string; team: string }> = {};
-            for (const p of record.players) {
-                roles[p.name] = { role: p.role, team: p.team };
-            }
-            this.playerRoles.set(roles);
         }
         this.loading.set(false);
     }

@@ -47,15 +47,19 @@
                 <app-game-timeline [events]="events()" [playerRoles]="playerRoleMap()" [perspectiveId]="perspectiveId()"
                     [isGodView]="!perspectiveId()">
                 </app-game-timeline>
+                @if (!isReplay()) {
                 <app-human-interaction></app-human-interaction>
+                }
             </div>
         </div>
 
         @if (state().winner) {
         <div class="final-actions">
-            <button class="primary-btn exit-btn" (click)="reset()">
+            @if (!isReplay()) {
+            <button class="primary-btn exit-btn" (click)="resetGame()">
                 {{ 'board.exit' | translate }}
             </button>
+            }
         </div>
         }
     </div>

@@ -30,9 +30,9 @@
                 </div>
             </div>
             <div class="card-body">
-                <div class="winner-badge" [class.good]="record.winner === 'Good'"
-                    [class.evil]="record.winner === 'Evil'">
-                    {{ record.winner === 'Good' ? ('history.good' | translate) : ('history.evil' | translate) }}
+                <div class="winner-badge" [class.good]="record.winner === 'GOOD'"
+                    [class.evil]="record.winner === 'EVIL'">
+                    {{ record.winner === 'GOOD' ? ('history.good' | translate) : ('history.evil' | translate) }}
                 </div>
                 <div class="player-count">{{ 'history.players' | translate: { count: record.playerCount } }}</div>
                 @if (record.isMerlinKilled) {
@@ -50,8 +50,8 @@
             <div class="card-footer">
                 <div class="player-names">
                     @for (player of record.players; track player.id) {
-                    <span class="player-tag" [class.good-team]="player.team === 'Good'"
-                        [class.evil-team]="player.team === 'Evil'">{{ player.name }}</span>
+                    <span class="player-tag" [class.good-team]="player.team === 'GOOD'"
+                        [class.evil-team]="player.team === 'EVIL'">{{ player.name }}</span>
                     }
                 </div>
             </div>

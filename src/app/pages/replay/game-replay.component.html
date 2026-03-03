@@ -13,35 +13,9 @@
     <div class="not-found">Record not found.</div>
     } @else {
     <div class="replay-content">
-        <aside class="replay-sidebar">
-            <h3>{{ 'history.playerRoles' | translate }}</h3>
-            <div class="player-roles-list">
-                @for (player of record()!.players; track player.id) {
-                <div class="player-role-item" [class.good-team]="player.team === 'Good'"
-                    [class.evil-team]="player.team === 'Evil'">
-                    <span class="player-name">{{ player.name }}</span>
-                    <span class="player-role">{{ player.role }}</span>
-                    @if (player.modelName) {
-                    <span class="player-model">{{ player.modelName }}</span>
-                    }
-                </div>
-                }
-            </div>
-
-            <div class="result-badge" [class.good]="record()!.winner === 'Good'"
-                [class.evil]="record()!.winner === 'Evil'">
-                {{ 'history.winner' | translate: { team: record()!.winner === 'Good' ? ('history.good' | translate) :
-                ('history.evil' | translate) } }}
-            </div>
-            @if (record()!.isMerlinKilled) {
-            <div class="merlin-badge">🗡️ {{ 'history.merlinKilled' | translate }}</div>
-            }
-        </aside>
-
-        <div class="replay-timeline">
-            <app-game-timeline [events]="record()!.events" [playerRoles]="playerRoles()"
-                [isGodView]="true"></app-game-timeline>
-        </div>
+        @if (replayedState(); as state) {
+        <app-game-board [state]="state" [isReplay]="true"></app-game-board>
+        }
     </div>
     }
 </div>

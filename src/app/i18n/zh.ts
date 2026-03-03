@@ -308,7 +308,7 @@ export const zhTW = {
         confirmDelete: '確定要刪除此遊戲紀錄？',
         backToGame: '← 回到遊戲',
         backToHistory: '← 回到紀錄',
-        replayTitle: '遊戲回放',
+        replayTitle: '遊戲紀錄',
         playerRoles: '玩家角色',
         import: '匯入',
         exportAll: '匯出全部',
