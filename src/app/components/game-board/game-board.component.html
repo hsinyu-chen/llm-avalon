@@ -107,14 +107,14 @@
             @if (p.agent.getLastAssessment?.(); as assessment) {
             <div class="info-section">
                 <div class="section-label">Assessment</div>
-                <div class="assessment-text">{{assessment}}</div>
+                <div class="assessment-text" [innerHTML]="assessment | markdown"></div>
             </div>
             }
 
             @if (p.agent.getLastStrategy?.(); as strategy) {
             <div class="info-section">
                 <div class="section-label">Strategy</div>
-                <div class="strategy-text">{{strategy}}</div>
+                <div class="strategy-text" [innerHTML]="strategy | markdown"></div>
             </div>
             }
 
@@ -126,14 +126,16 @@
                     @for (entry of history; track $index) {
                     <div class="note-entry">
                         <div class="note-round">Round {{entry.round}}</div>
-                        <div class="note-text">{{entry.note}}</div>
+                        <div class="note-text" [innerHTML]="entry.note | markdown"></div>
                     </div>
                     }
                     } @else {
-                    <div class="note-text">{{p.agent.getPersonalNote() || ('playerList.noNote' | translate)}}</div>
+                    <div class="note-text"
+                        [innerHTML]="(p.agent.getPersonalNote() || ('playerList.noNote' | translate)) | markdown"></div>
                     }
                     } @else {
-                    <div class="note-text">{{p.agent.getPersonalNote() || ('playerList.noNote' | translate)}}</div>
+                    <div class="note-text"
+                        [innerHTML]="(p.agent.getPersonalNote() || ('playerList.noNote' | translate)) | markdown"></div>
                     }
                 </div>
             </div>

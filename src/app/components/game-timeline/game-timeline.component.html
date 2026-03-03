@@ -83,11 +83,11 @@
                         !event.message)) {
                         <div class="inner-thoughts" [class.no-border]="!event.message"
                             [class.with-message]="event.message">
-                            @if (event.thought && !event.message) {
-                            <div class="thought-line native-cot">{{ event.thought }}</div>
+                            @if (event.thought && !event.message && !event.reasoning) {
+                            <div class="thought-line native-cot" [innerHTML]="event.thought | markdown"></div>
                             }
                             @if (event.reasoning) {
-                            <div class="thought-line formal-reasoning">{{ event.reasoning }}</div>
+                            <div class="thought-line formal-reasoning" [innerHTML]="event.reasoning | markdown"></div>
                             }
                             @if (event.status === 'pending' && !event.message) {
                             <span class="spinner mini"></span>
@@ -96,7 +96,7 @@
                         }
                         }
                         @if (event.message) {
-                        <div class="message">{{ event.message }}</div>
+                        <div class="message" [innerHTML]="event.message | markdown"></div>
                         }
                         @if (event.privateNotes) {
                         <div class="private-notes">
@@ -136,7 +136,8 @@
                         event.teamIds.length === 0)) {
                         <div class="inner-thoughts" [class.no-border]="event.teamIds.length === 0"
                             [class.with-message]="event.teamIds.length > 0">
-                            @if (event.thought && event.teamIds.length === 0) { <div class="thought-line native-cot">{{
+                            @if (event.thought && event.teamIds.length === 0 && !event.reasoning) { <div
+                                class="thought-line native-cot">{{
                                 event.thought }}</div> }
                             @if (event.reasoning) { <div class="thought-line formal-reasoning">{{ event.reasoning }}
                             </div> }
@@ -303,7 +304,8 @@
                         !event.targetId)) {
                         <div class="inner-thoughts" [class.no-border]="!event.targetId"
                             [class.with-message]="!!event.targetId">
-                            @if (event.thought && !event.targetId) { <div class="thought-line native-cot">{{
+                            @if (event.thought && !event.targetId && !event.reasoning) { <div
+                                class="thought-line native-cot">{{
                                 event.thought }}</div> }
                             @if (event.reasoning) { <div class="thought-line formal-reasoning">{{ event.reasoning }}
                             </div> }
@@ -371,11 +373,11 @@
                         !event.message)) {
                         <div class="inner-thoughts" [class.no-border]="!event.message"
                             [class.with-message]="event.message">
-                            @if (event.thought && !event.message) {
-                            <div class="thought-line native-cot">{{ event.thought }}</div>
+                            @if (event.thought && !event.message && !event.reasoning) {
+                            <div class="thought-line native-cot" [innerHTML]="event.thought | markdown"></div>
                             }
                             @if (event.reasoning) {
-                            <div class="thought-line formal-reasoning">{{ event.reasoning }}</div>
+                            <div class="thought-line formal-reasoning" [innerHTML]="event.reasoning | markdown"></div>
                             }
                             @if (event.status === 'pending' && !event.message) {
                             <span class="spinner mini"></span>
@@ -383,7 +385,7 @@
                         </div>
                         }
                         }
-                        <div class="message">{{ event.message }}</div>
+                        <div class="message" [innerHTML]="event.message | markdown"></div>
                         @if (event.privateNotes) {
                         <div class="private-notes">
                             @for (note of (event.privateNotes | keyvalue); track note.key) {
@@ -447,7 +449,7 @@
             <button class="close-btn" (click)="closeReasoningDialog()">✕</button>
         </div>
         <div class="dialog-body">
-            <div class="reasoning-text">{{ selectedReasoningText() }}</div>
+            <div class="reasoning-text" [innerHTML]="selectedReasoningText() | markdown"></div>
         </div>
     </dialog>
 </div>

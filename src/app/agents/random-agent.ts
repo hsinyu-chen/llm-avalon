@@ -1,4 +1,4 @@
-import { IAgent, NightPhaseInfo, TeamProposalContext, AssassinContext, SpeechAct, ExcaliburContext, NoteContext, ProposeTeamAction, VoteAction, MissionAction, AssassinateAction, HiddenSignal, SignalType } from '../models/agent.interface';
+import { IAgent, NightPhaseInfo, TeamProposalContext, AssassinContext, SpeechAct, ExcaliburContext, LadyContext, NoteContext, ProposeTeamAction, VoteAction, MissionAction, AssassinateAction, HiddenSignal, SignalType, GameReflectionContext, LLMUsageMetadata, VoteContext, MissionContext, SpeakContext } from '../models/agent.interface';
 
 export class RandomAgent implements IAgent {
     readonly modelName = 'Random';
@@ -6,7 +6,7 @@ export class RandomAgent implements IAgent {
     private nightInfo = 'No night info';
 
     constructor(public readonly id: string, public readonly name: string) { }
-    async shareGameReflection(): Promise<{ reflection: string; self_check?: string; reasoning?: string; situation_assessment?: string; action_strategy?: string; promptText?: string }> {
+    async shareGameReflection(context: GameReflectionContext, onChunk?: (chunk: string, field: 'reflection' | 'thought' | 'self_check' | 'reasoning' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<{ reflection: string; self_check?: string; reasoning?: string; situation_assessment?: string; action_strategy?: string; promptText?: string }> {
         return { reflection: "...", situation_assessment: "...", action_strategy: "..." };
     }
     getPersonalNote(): string {
@@ -26,7 +26,7 @@ export class RandomAgent implements IAgent {
         console.log(`[Agent:${this.name}] Role: ${info.myRole}. Visible:`, info.visiblePlayers);
     }
 
-    async proposeTeam(context: TeamProposalContext, onChunk?: any): Promise<ProposeTeamAction> {
+    async proposeTeam(context: TeamProposalContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<ProposeTeamAction> {
         const shuffled = [...context.playerIds].sort(() => Math.random() - 0.5);
         return {
             self_check: 'Thinking...',
@@ -39,7 +39,7 @@ export class RandomAgent implements IAgent {
         };
     }
 
-    async vote(context: any, onChunk?: any): Promise<VoteAction> {
+    async vote(context: VoteContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<VoteAction> {
         // 60% chance to approve to keep the game moving
         const approve = Math.random() > 0.4;
         return {
@@ -53,7 +53,7 @@ export class RandomAgent implements IAgent {
         };
     }
 
-    async executeMission(context: any, onChunk?: any): Promise<MissionAction> {
+    async executeMission(context: MissionContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<MissionAction> {
         // Simple logic: 30% fail rate (random evil behavior simulation)
         return {
             self_check: 'Thinking...',
@@ -66,7 +66,7 @@ export class RandomAgent implements IAgent {
         };
     }
 
-    async assassinate(context: AssassinContext, onChunk?: any): Promise<AssassinateAction> {
+    async assassinate(context: AssassinContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<AssassinateAction> {
         const target = context.goodPlayerIds[Math.floor(Math.random() * context.goodPlayerIds.length)];
         return {
             self_check: 'Thinking...',
@@ -79,7 +79,7 @@ export class RandomAgent implements IAgent {
         };
     }
 
-    async speak(context: any, onChunk?: (chunk: string, field: 'speech' | 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<SpeechAct> {
+    async speak(context: SpeakContext, onChunk?: (chunk: string, field: 'speech' | 'thought' | 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<SpeechAct> {
         // 20% chance to pass
         if (Math.random() < 0.2) {
             return {
@@ -125,7 +125,7 @@ export class RandomAgent implements IAgent {
         console.log(`[RandomAgent ${this.name}] System Message: ${message}`);
     }
 
-    async useExcalibur(context: ExcaliburContext): Promise<string | null> {
+    async useExcalibur(context: ExcaliburContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string | null> {
         // 50% chance to switch someone
         if (Math.random() < 0.5) return null;
         if (context.missionCardHolderIds.length === 0) return null;
@@ -133,11 +133,11 @@ export class RandomAgent implements IAgent {
         return target;
     }
 
-    async useLadyOfTheLake(): Promise<string | null> {
+    async useLadyOfTheLake(context: LadyContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string | null> {
         return null;
     }
 
-    async updateNote(context: NoteContext): Promise<string> {
+    async updateNote(context: NoteContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string> {
         console.log('[RandomAgent] Updating note for round', context.round);
         this.note = "Random Note";
         return this.note;

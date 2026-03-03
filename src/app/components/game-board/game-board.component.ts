@@ -6,6 +6,7 @@ import { NgClass, DecimalPipe } from '@angular/common';
 import { ROLE_META } from '../../models/role';
 import { GameEvent, GamePhase } from '../../models/game-event';
 import { TranslatePipe } from '../../i18n/translate.pipe';
+import { MarkdownPipe } from '../../pipes/markdown.pipe';
 import { I18nService } from '../../i18n/i18n.service';
 import { ScoreboardComponent } from './scoreboard/scoreboard.component';
 import { StatusPanelComponent } from './status-panel/status-panel.component';
@@ -22,6 +23,7 @@ import { HumanInteractionComponent } from './human-interaction/human-interaction
         HumanInteractionComponent,
         NgClass,
         TranslatePipe,
+        MarkdownPipe,
         DecimalPipe
     ],
     templateUrl: './game-board.component.html',

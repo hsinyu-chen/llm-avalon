@@ -2,6 +2,7 @@ import { Component, input, computed, inject, ChangeDetectionStrategy, signal, vi
 import { CommonModule } from '@angular/common';
 import { GameEvent, GamePhase } from '../../models/game-event';
 import { TranslatePipe } from '../../i18n/translate.pipe';
+import { MarkdownPipe } from '../../pipes/markdown.pipe';
 import { I18nService } from '../../i18n/i18n.service';
 import { GameEngineService } from '../../services/game-engine.service';
 import { LLMProviderRegistryService } from '../../services/llm/llm-provider-registry.service';
@@ -15,7 +16,7 @@ interface RoundGroup {
 @Component({
     selector: 'app-game-timeline',
     standalone: true,
-    imports: [CommonModule, TranslatePipe],
+    imports: [CommonModule, TranslatePipe, MarkdownPipe],
     templateUrl: './game-timeline.component.html',
     styleUrl: './game-timeline.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush

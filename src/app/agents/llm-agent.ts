@@ -365,7 +365,7 @@ export class LLMAgent implements IAgent {
     }
 
 
-    async useExcalibur(context: ExcaliburContext): Promise<string | null> {
+    async useExcalibur(context: ExcaliburContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string | null> {
         const validIds = new Set(context.missionCardHolderIds);
         const nameToId = new Map(Object.entries(context.playerNames).map(([id, name]) => [name, id]));
         const holdersStr = context.missionCardHolderIds
@@ -393,12 +393,13 @@ export class LLMAgent implements IAgent {
                 }
                 return null;
             },
-            'useExcalibur'
+            'useExcalibur',
+            onChunk as (chunk: string, field: string, metadata?: LLMUsageMetadata) => void
         );
         return result.targetId;
     }
 
-    async useLadyOfTheLake(context: LadyContext): Promise<string | null> {
+    async useLadyOfTheLake(context: LadyContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string | null> {
         const validIds = new Set(Object.keys(context.playerNames));
         const nameToId = new Map(Object.entries(context.playerNames).map(([id, name]) => [name, id]));
 
@@ -424,12 +425,13 @@ export class LLMAgent implements IAgent {
 
                 return null;
             },
-            'useLadyOfTheLake'
+            'useLadyOfTheLake',
+            onChunk as (chunk: string, field: string, metadata?: LLMUsageMetadata) => void
         );
         return result.targetId;
     }
 
-    async updateNote(context: NoteContext): Promise<string> {
+    async updateNote(context: NoteContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string> {
         const prompt = this.buildPrompt(
             context,
             'updateNote',
@@ -443,7 +445,8 @@ export class LLMAgent implements IAgent {
                 if (!parsed.newNote || typeof parsed.newNote !== 'string') return 'Response must contain newNote (string).';
                 return null;
             },
-            'updateNote'
+            'updateNote',
+            onChunk as (chunk: string, field: string, metadata?: LLMUsageMetadata) => void
         );
 
         this.note = result.newNote;
@@ -489,7 +492,7 @@ export class LLMAgent implements IAgent {
                 return null;
             },
             'shareGameReflection',
-            onChunk as (chunk: string, field: string) => void
+            onChunk as (chunk: string, field: string, metadata?: LLMUsageMetadata) => void
         );
 
         return {

@@ -929,6 +929,8 @@ export class GameEngineService {
 
         try {
             this.updateState({ isThinking: true });
+            const costsBefore = Object.fromEntries(players.map(p => [p.agent.id, p.agent.getTokenUsage?.()?.totalCost ?? 0]));
+            const playerTokens: Record<string, { prompt: number, completion: number, cached: number }> = {};
             const votesResult = await Promise.all(players.map(p =>
                 p.agent.vote({
                     ...this.buildBaseContext(p.agent.id),
@@ -936,6 +938,24 @@ export class GameEngineService {
                     leaderId: players[state.currentLeaderIndex].agent.id,
                     excaliburHolderId: state.excaliburHolder || null,
                     chatLog: this.currentRoundChatLog
+                }, (chunk, field, metadata) => {
+                    if (metadata) {
+                        playerTokens[p.agent.id] = {
+                            prompt: metadata.prompt || 0,
+                            completion: metadata.candidates || 0,
+                            cached: metadata.cached || 0
+                        };
+                        this._state.update(s => {
+                            const newEvents = [...s.events];
+                            const ev = newEvents[eventIndex];
+                            if (ev && ev.type === 'VOTE_RESULTS') {
+                                ev.promptTokens = Object.values(playerTokens).reduce((acc, curr) => acc + curr.prompt, 0);
+                                ev.completionTokens = Object.values(playerTokens).reduce((acc, curr) => acc + curr.completion, 0);
+                                ev.cachedTokens = Object.values(playerTokens).reduce((acc, curr) => acc + curr.cached, 0);
+                            }
+                            return { ...s, events: newEvents };
+                        });
+                    }
                 }).then(voteResult => ({
                     id: p.agent.id,
                     name: p.agent.name,
@@ -964,6 +984,7 @@ export class GameEngineService {
                     ev.passed = majority;
                     ev.failCount = newFailedCount;
                     ev.status = 'success';
+                    ev.cost = players.reduce((acc, p) => acc + ((p.agent.getTokenUsage?.()?.totalCost ?? 0) - (costsBefore[p.agent.id] || 0)), 0);
                     console.log('[GameEvent Update] VOTE_RESULTS', ev);
                 }
                 return { ...s, events: newEvents, isThinking: false };
@@ -1009,8 +1030,31 @@ export class GameEngineService {
 
         try {
             this.updateState({ isThinking: true });
+            const costsBefore = Object.fromEntries(onMission.map(p => [p.agent.id, p.agent.getTokenUsage?.()?.totalCost ?? 0]));
+            const playerTokens: Record<string, { prompt: number, completion: number, cached: number }> = {};
             const missionResponses = await Promise.all(onMission.map(p =>
-                p.agent.executeMission({ ...this.buildBaseContext(p.agent.id), team: [...teamIds] })
+                p.agent.executeMission({
+                    ...this.buildBaseContext(p.agent.id),
+                    team: [...teamIds]
+                }, (chunk, field, metadata) => {
+                    if (metadata) {
+                        playerTokens[p.agent.id] = {
+                            prompt: metadata.prompt || 0,
+                            completion: metadata.candidates || 0,
+                            cached: metadata.cached || 0
+                        };
+                        this._state.update(s => {
+                            const newEvents = [...s.events];
+                            const ev = newEvents[eventIndex];
+                            if (ev && ev.type === 'MISSION_OUTCOME') {
+                                ev.promptTokens = Object.values(playerTokens).reduce((acc, curr) => acc + curr.prompt, 0);
+                                ev.completionTokens = Object.values(playerTokens).reduce((acc, curr) => acc + curr.completion, 0);
+                                ev.cachedTokens = Object.values(playerTokens).reduce((acc, curr) => acc + curr.cached, 0);
+                            }
+                            return { ...s, events: newEvents };
+                        });
+                    }
+                })
             ));
 
             const initialChoices = missionResponses.map(r => r.action.playedMissionResult);
@@ -1059,6 +1103,7 @@ export class GameEngineService {
                     ev.succeeded = succeeded;
                     ev.reasonings = reasonings;
                     ev.status = 'success';
+                    ev.cost = onMission.reduce((acc, p) => acc + ((p.agent.getTokenUsage?.()?.totalCost ?? 0) - (costsBefore[p.agent.id] || 0)), 0);
                     console.log('[GameEvent Update] MISSION_OUTCOME', ev);
                 }
                 const newMissions = [...s.missions, record];
@@ -1197,7 +1242,7 @@ export class GameEngineService {
                 ...this.buildBaseContext(assassinPlayer.agent.id),
                 goodPlayerIds,
                 allEvents: state.events || []
-            }, (chunk, field) => {
+            }, (chunk, field, metadata) => {
                 this._state.update(s => {
                     const newEvents = [...s.events];
                     const ev = newEvents[eventIndex];
@@ -1208,6 +1253,14 @@ export class GameEngineService {
                         else if (field === 'self_check') ev.self_check = (ev.self_check || '') + chunk;
                         else if (field === 'situation_assessment') ev.situation_assessment = (ev.situation_assessment || '') + chunk;
                         else if (field === 'action_strategy') ev.action_strategy = (ev.action_strategy || '') + chunk;
+
+                        if (metadata) {
+                            if (metadata.promptSpeed) ev.promptSpeed = metadata.promptSpeed;
+                            if (metadata.completionSpeed) ev.completionSpeed = metadata.completionSpeed;
+                            if (metadata.prompt) ev.promptTokens = metadata.prompt;
+                            if (metadata.candidates) ev.completionTokens = metadata.candidates;
+                            if (metadata.cached) ev.cachedTokens = metadata.cached;
+                        }
                     }
                     return { ...s, events: newEvents };
                 });
@@ -1319,7 +1372,7 @@ export class GameEngineService {
                     playerRoles: state.players.map(p => ({ id: p.agent.id, role: p.role })),
                     playerNames: Object.fromEntries(state.players.map(p => [p.agent.id, p.agent.name])),
                     allEvents: state.events
-                }, (chunk, field) => {
+                }, (chunk, field, metadata) => {
                     this._state.update(s => {
                         const newEvents = [...s.events];
                         const ev = newEvents[eventIndex];
@@ -1338,6 +1391,14 @@ export class GameEngineService {
                             else if (field === 'action_strategy') {
                                 ev.action_strategy = (ev.action_strategy || '') + chunk;
                                 if ((player.agent as any).updateStreamingStrategy) (player.agent as any).updateStreamingStrategy(chunk);
+                            }
+
+                            if (metadata) {
+                                if (metadata.promptSpeed) ev.promptSpeed = metadata.promptSpeed;
+                                if (metadata.completionSpeed) ev.completionSpeed = metadata.completionSpeed;
+                                if (metadata.prompt) ev.promptTokens = metadata.prompt;
+                                if (metadata.candidates) ev.completionTokens = metadata.candidates;
+                                if (metadata.cached) ev.cachedTokens = metadata.cached;
                             }
                         }
                         return { ...s, events: newEvents };
@@ -1407,18 +1468,68 @@ export class GameEngineService {
             const pendingIds = state.players.map(p => p.agent.id);
             this.updateState({ updatingNotePlayerIds: pendingIds });
 
+            const costsBefore = Object.fromEntries(state.players.map(p => [p.agent.id, p.agent.getTokenUsage?.()?.totalCost ?? 0]));
+            const playerTokens: Record<string, { prompt: number, completion: number, cached: number }> = {};
+            const eventIndex = this._state().events.length;
+            this.addEvent({
+                type: 'SYSTEM',
+                subType: 'AGENT_NOTE_UPDATE',
+                round: state.currentRound,
+                message: this.i18n.translate('board.updatingNotes', { names: '...' }).replace('wait', 'complete'),
+                icon: '📝',
+                status: 'pending'
+            });
+
             await Promise.all(state.players.map(async p => {
                 await p.agent.updateNote({
                     ...this.buildBaseContext(p.agent.id),
                     playerCount: state.players.length,
                     recentEvents,
                     personalNote: ''
+                }, (chunk, field, metadata) => {
+                    if (metadata) {
+                        playerTokens[p.agent.id] = {
+                            prompt: metadata.prompt || 0,
+                            completion: metadata.candidates || 0,
+                            cached: metadata.cached || 0
+                        };
+                        this._state.update(s => {
+                            const newEvents = [...s.events];
+                            const ev = newEvents[eventIndex];
+                            if (ev && ev.type === 'SYSTEM' && ev.subType === 'AGENT_NOTE_UPDATE') {
+                                ev.promptTokens = Object.values(playerTokens).reduce((acc, curr) => acc + curr.prompt, 0);
+                                ev.completionTokens = Object.values(playerTokens).reduce((acc, curr) => acc + curr.completion, 0);
+                                ev.cachedTokens = Object.values(playerTokens).reduce((acc, curr) => acc + curr.cached, 0);
+                            }
+                            return { ...s, events: newEvents };
+                        });
+                    }
                 });
-                this._state.update(s => ({
-                    ...s,
-                    updatingNotePlayerIds: (s.updatingNotePlayerIds || []).filter(id => id !== p.agent.id)
-                }));
+                this._state.update(s => {
+                    const newEvents = [...s.events];
+                    const ev = newEvents[eventIndex];
+                    if (ev && ev.type === 'SYSTEM' && ev.subType === 'AGENT_NOTE_UPDATE') {
+                        // Keep status pending until all players are done.
+                        // Actually, just let finally block set it to success once.
+                    }
+                    return {
+                        ...s,
+                        events: newEvents,
+                        updatingNotePlayerIds: (s.updatingNotePlayerIds || []).filter(id => id !== p.agent.id)
+                    };
+                });
             }));
+
+            this._state.update(s => {
+                const newEvents = [...s.events];
+                const ev = newEvents[eventIndex];
+                if (ev && ev.type === 'SYSTEM' && ev.subType === 'AGENT_NOTE_UPDATE') {
+                    ev.status = 'success';
+                    ev.message = this.i18n.translate('board.updatingNotes', { names: 'Everyone' }).split('...')[0].trim() + ' Done.';
+                    ev.cost = state.players.reduce((acc, p) => acc + ((p.agent.getTokenUsage?.()?.totalCost ?? 0) - (costsBefore[p.agent.id] || 0)), 0);
+                }
+                return { ...s, events: newEvents };
+            });
         } catch (e) {
             // This is a non-critical failure, so we just log it and don't pause.
             const error = e as Error;

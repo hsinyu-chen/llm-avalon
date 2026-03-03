@@ -2,6 +2,7 @@ import { Role, Team } from './role';
 import { MissionRecord, GameOptions } from './game-state';
 import { GameEvent } from './game-event';
 import { LLMUsageMetadata } from '../services/llm/llm-provider';
+export type { LLMUsageMetadata };
 
 // =============================================================================
 //  Base Context — shared by ALL agent methods (except NightPhaseInfo)
@@ -241,8 +242,8 @@ export interface IAgent {
     speak(context: SpeakContext, onChunk?: (chunk: string, field: 'speech' | 'thought' | 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<SpeechAct>;
     shareGameReflection(context: GameReflectionContext, onChunk?: (chunk: string, field: 'reflection' | 'thought' | 'self_check' | 'reasoning' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<{ reflection: string; self_check?: string; reasoning?: string; situation_assessment?: string; action_strategy?: string; promptText?: string; retryLogs?: string[] }>;
     onSystemMessage(message: string): Promise<void>;
-    useExcalibur(context: ExcaliburContext): Promise<string | null>;
-    useLadyOfTheLake(context: LadyContext): Promise<string | null>;
-    updateNote(context: NoteContext): Promise<string>;
+    useExcalibur(context: ExcaliburContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string | null>;
+    useLadyOfTheLake(context: LadyContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string | null>;
+    updateNote(context: NoteContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string>;
 }
 

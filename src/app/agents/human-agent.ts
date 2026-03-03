@@ -1,4 +1,4 @@
-import { IAgent, NightPhaseInfo, TeamProposalContext, ProposeTeamAction, VoteContext, VoteAction, MissionContext, MissionAction, AssassinContext, AssassinateAction, SpeakContext, SpeechAct, GameReflectionContext, NoteContext, ExcaliburContext, LadyContext, TokenUsage } from '../models/agent.interface';
+import { IAgent, NightPhaseInfo, TeamProposalContext, ProposeTeamAction, VoteContext, VoteAction, MissionContext, MissionAction, AssassinContext, AssassinateAction, SpeakContext, SpeechAct, GameReflectionContext, NoteContext, ExcaliburContext, LadyContext, TokenUsage, LLMUsageMetadata } from '../models/agent.interface';
 import { HumanInteractionService } from '../services/human-interaction.service';
 
 export class HumanAgent implements IAgent {
@@ -29,25 +29,25 @@ export class HumanAgent implements IAgent {
         this.nightInfoText = info.intelSummary || '';
     }
 
-    async proposeTeam(context: TeamProposalContext): Promise<ProposeTeamAction> {
+    async proposeTeam(context: TeamProposalContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<ProposeTeamAction> {
         return new Promise((resolve) => {
             this.interactionService.requestAction({ type: 'propose', context, resolve });
         });
     }
 
-    async vote(context: VoteContext): Promise<VoteAction> {
+    async vote(context: VoteContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<VoteAction> {
         return new Promise((resolve) => {
             this.interactionService.requestAction({ type: 'vote', context, resolve });
         });
     }
 
-    async executeMission(context: MissionContext): Promise<MissionAction> {
+    async executeMission(context: MissionContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<MissionAction> {
         return new Promise((resolve) => {
             this.interactionService.requestAction({ type: 'mission', context, resolve });
         });
     }
 
-    async assassinate(context: AssassinContext): Promise<AssassinateAction> {
+    async assassinate(context: AssassinContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<AssassinateAction> {
         return new Promise((resolve) => {
             this.interactionService.requestAction({ type: 'assassinate', context, resolve });
         });
@@ -59,7 +59,7 @@ export class HumanAgent implements IAgent {
         });
     }
 
-    async shareGameReflection(context: GameReflectionContext): Promise<any> {
+    async shareGameReflection(context: GameReflectionContext, onChunk?: (chunk: string, field: 'reflection' | 'thought' | 'self_check' | 'reasoning' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<any> {
         return { reflection: 'Game ended.' };
     }
 
@@ -67,15 +67,15 @@ export class HumanAgent implements IAgent {
         console.log(`[HumanAgent] System Message: ${message}`);
     }
 
-    async useExcalibur(context: ExcaliburContext): Promise<string | null> {
+    async useExcalibur(context: ExcaliburContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string | null> {
         return null; // TODO: Implement if needed
     }
 
-    async useLadyOfTheLake(context: LadyContext): Promise<string | null> {
+    async useLadyOfTheLake(context: LadyContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string | null> {
         return null; // TODO: Implement if needed
     }
 
-    async updateNote(context: NoteContext): Promise<string> {
+    async updateNote(context: NoteContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string> {
         this.personalNote = context.personalNote;
         return this.personalNote;
     }
