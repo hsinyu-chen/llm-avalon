@@ -14,15 +14,6 @@ export class LLMProviderRegistryService {
     /** Map of registered providers by name */
     private providers = new Map<string, LLMProvider>();
 
-    /** Currently active provider */
-    private _activeProvider = signal<LLMProvider | null>(null);
-
-    /** Public readonly access to active provider */
-    readonly activeProvider = this._activeProvider.asReadonly();
-
-    /** Computed flag indicating if a provider is active */
-    readonly hasActiveProvider = computed(() => this._activeProvider() !== null);
-
     /**
      * Register a provider with the registry.
      * @param provider The LLM provider instance to register
@@ -36,29 +27,6 @@ export class LLMProviderRegistryService {
     }
 
     /**
-     * Set the active provider by name.
-     * @param providerName The name of the provider to activate
-     * @throws Error if provider is not registered
-     */
-    setActive(providerName: string): void {
-        const provider = this.providers.get(providerName);
-        if (!provider) {
-            const available = Array.from(this.providers.keys()).join(', ');
-            throw new Error(`[LLMRegistry] Provider '${providerName}' not found. Available: ${available}`);
-        }
-        this._activeProvider.set(provider);
-        console.log(`[LLMRegistry] Active provider set to: ${providerName}`);
-    }
-
-    /**
-     * Get the currently active provider.
-     * @returns The active provider or null if none is set
-     */
-    getActive(): LLMProvider | null {
-        return this._activeProvider();
-    }
-
-    /**
      * Get a specific provider by name (without activating it).
      * @param providerName The name of the provider to retrieve
      * @returns The provider or undefined if not found
@@ -68,11 +36,11 @@ export class LLMProviderRegistryService {
     }
 
     /**
-     * Get capability flags for the active provider.
-     * @returns Capabilities object or a default "no capabilities" object if no provider is active
+     * Get capability flags for a specific provider.
+     * @returns Capabilities object or a default "no capabilities" object if provider not found
      */
-    getCapabilities(): LLMProviderCapabilities {
-        const provider = this._activeProvider();
+    getCapabilities(providerName: string): LLMProviderCapabilities {
+        const provider = this.getProvider(providerName);
         if (provider) {
             return provider.getCapabilities();
         }

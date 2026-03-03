@@ -1,7 +1,7 @@
 import { IAgent, NightPhaseInfo, TeamProposalContext, VoteContext, MissionContext, AssassinContext, SpeakContext, SpeechAct, ExcaliburContext, LadyContext, NoteContext, GameReflectionContext, BaseGameContext, TokenUsage, ProposeTeamAction, VoteAction, MissionAction, AssassinateAction } from '../models/agent.interface';
 import { LLMManagerService } from '../services/llm/llm-manager.service';
 import { Role, ROLE_META, Team } from '../models/role';
-import { LLMContent, LLMGenerateConfig, LLMProvider, LLMUsageMetadata } from '../services/llm/llm-provider';
+import { LLMContent, LLMGenerateConfig, LLMProvider, LLMUsageMetadata, LLMConfig } from '../services/llm/llm-provider';
 import { GameEvent } from '../models/game-event';
 import { signal } from '@angular/core';
 import { getGameOverViewPrompt } from './prompts/getGameOverViewPrompt';
@@ -117,7 +117,7 @@ export class LLMAgent implements IAgent {
                     return;
                 }
             }
-            const active = this.llmManager.activeConfig();
+            const active = this.llmManager.getDefaultConfig();
             if (active) {
                 this._modelName = active.settings.modelId || active.name || active.provider;
             }
@@ -812,7 +812,8 @@ export class LLMAgent implements IAgent {
         actionName: string,
         onFieldChunk?: (chunk: string, field: string, metadata?: LLMUsageMetadata) => void
     ): Promise<T & { retryLogs?: string[] }> {
-        const provider = await this.getProvider();
+        const llmConfig = await this.getConfig();
+        const provider = await this.getProvider(llmConfig);
         const contents: LLMContent[] = [{ role: 'user', parts: [{ text: prompt }] }];
         const retryLogs: string[] = [];
 
@@ -830,7 +831,7 @@ export class LLMAgent implements IAgent {
                     onFieldChunk('', 'reflection');
                 }
 
-                const responseText = await this.streamLLM(provider, contents, config, onFieldChunk, retryLogs);
+                const responseText = await this.streamLLM(provider, llmConfig, contents, config, onFieldChunk, retryLogs);
 
                 // Append model's response to conversation history (internal to this query session)
                 contents.push({ role: 'model', parts: [{ text: responseText }] });
@@ -885,33 +886,33 @@ export class LLMAgent implements IAgent {
         }
     }
 
-    /** Get the LLM provider instance. */
-    private async getProvider() {
-        let provider;
+    /** Get the LLM config for this agent */
+    private async getConfig(): Promise<LLMConfig> {
         if (this.configId) {
-            provider = await this.llmManager.getProviderByConfigId(this.configId);
-        } else {
-            provider = this.llmManager.getProviderForConfig(this.llmManager.activeConfig()!);
+            const config = await this.llmManager.getConfigById(this.configId);
+            if (config) return config;
         }
-        if (!provider) throw new Error('[LLMAgent] No provider available');
+        const active = this.llmManager.getDefaultConfig();
+        if (!active) throw new Error('[LLMAgent] No default config available');
+        return active;
+    }
+
+    /** Get the LLM provider instance. */
+    private async getProvider(config: LLMConfig) {
+        const provider = this.llmManager.getProviderForConfig(config);
+        if (!provider) throw new Error(`[LLMAgent] No provider available for ${config.provider}`);
         return provider;
     }
 
     /** Stream a response from the provider given a conversation. */
-    private async streamLLM(provider: LLMProvider, contents: LLMContent[], config: LLMGenerateConfig, onFieldChunk?: (chunk: string, field: string, metadata?: LLMUsageMetadata) => void, retryLogs: string[] = []): Promise<string> {
+    private async streamLLM(provider: LLMProvider, config: LLMConfig, contents: LLMContent[], genConfig: LLMGenerateConfig, onFieldChunk?: (chunk: string, field: string, metadata?: LLMUsageMetadata) => void, retryLogs: string[] = []): Promise<string> {
         let fullText = '';
         let finalUsageMetadata: LLMUsageMetadata | undefined;
         let streamSucceeded = false;
 
-        let llmConfig;
-        if (this.configId) {
-            llmConfig = this.llmManager.configs().find(c => c.id === this.configId);
-        }
-        if (!llmConfig) {
-            llmConfig = this.llmManager.activeConfig();
-        }
+        const llmConfig = config;
         // Use baseUrl as the mutex key if available, otherwise fallback to provider name
-        const mutexKey = llmConfig?.settings?.baseUrl || llmConfig?.provider || 'default';
+        const mutexKey = llmConfig.settings?.baseUrl || llmConfig.provider || 'default';
 
         if (!streamQueues[mutexKey]) {
             streamQueues[mutexKey] = Promise.resolve();
@@ -934,7 +935,7 @@ export class LLMAgent implements IAgent {
                     fullText = ''; // Reset on retry
                     finalUsageMetadata = undefined; // Reset usage metadata on each retry attempt
                     streamSucceeded = false;
-                    const stream = provider.generateContentStream(contents, this.systemInstruction, config);
+                    const stream = provider.generateContentStream(config.settings, contents, this.systemInstruction, genConfig);
 
                     // Simple state machine to extract fields during streaming
                     let currentField: string | null = null;
@@ -1019,6 +1020,12 @@ export class LLMAgent implements IAgent {
 
                     // If we get here, the stream finished successfully
                     streamSucceeded = true;
+
+                    if (onFieldChunk && finalUsageMetadata) {
+                        console.log('[llm-agent] Calling onFieldChunk with metadata:', finalUsageMetadata);
+                        onFieldChunk('', currentField === 'message' ? 'speech' : (currentField || 'speech'), finalUsageMetadata);
+                    }
+
                     break;
 
                 } catch (e) {
@@ -1067,17 +1074,10 @@ export class LLMAgent implements IAgent {
         this.tokenUsage.cachedTokens += metadata.cached || 0;
 
         try {
-            const provider = await this.getProvider();
-            let config;
-            if (this.configId) {
-                config = this.llmManager.configs().find(c => c.id === this.configId);
-            }
-            if (!config) {
-                config = this.llmManager.activeConfig();
-            }
-            if (!config) return;
+            const config = await this.getConfig();
+            const provider = await this.getProvider(config);
 
-            const models = provider.getAvailableModels();
+            const models = provider.getAvailableModels(config.settings);
             const modelDef = models.find(m => m.id === config.settings.modelId);
 
             if (modelDef) {

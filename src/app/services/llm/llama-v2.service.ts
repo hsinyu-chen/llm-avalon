@@ -24,97 +24,31 @@ export class LlamaV2Service implements LLMProvider {
     readonly providerName = 'llama.cpp'; // Use same name to replace legacy LlamaService in registry
     settingsComponent?: Type<LLMSettingsComponent>;
 
-    private baseUrl = signal('http://localhost:8080');
-    private modelId = signal<string | undefined>(undefined);
-    private temperature = signal<number | undefined>(undefined);
-    private frequencyPenalty = signal<number | undefined>(undefined);
-    private presencePenalty = signal<number | undefined>(undefined);
-    private inputPrice = signal<number | undefined>(undefined);
-    private cacheInputPrice = signal<number | undefined>(undefined);
-    private outputPrice = signal<number | undefined>(undefined);
-    private topP = signal<number | undefined>(undefined);
-    private topK = signal<number | undefined>(undefined);
-    private minP = signal<number | undefined>(undefined);
-    private repetitionPenalty = signal<number | undefined>(undefined);
-    private enableThinking = signal<boolean>(false);
-    private reasoningEffort = signal<string>('low');
-
-    // Dynamic props from server
-    private serverChatTemplate = signal<string | null>(null);
-
-    init(config: LLMProviderConfig): void {
+    // Stateless helper
+    private extractConfig(config: LLMProviderConfig) {
         const cleanStr = (val: any) => (typeof val === 'string' && val.trim() === '') ? undefined : val;
-
-        if (config.baseUrl) {
-            this.baseUrl.set(config.baseUrl.replace(/\/$/, ''));
-        }
-        if (config.modelId !== undefined) {
-            this.modelId.set(cleanStr(config.modelId));
-        }
-        if (config.temperature !== undefined) {
-            this.temperature.set(cleanStr(config.temperature));
-        }
-        if (config.frequency_penalty !== undefined) {
-            this.frequencyPenalty.set(cleanStr(config.frequency_penalty));
-        }
-        if (config.presence_penalty !== undefined) {
-            this.presencePenalty.set(cleanStr(config.presence_penalty));
-        }
-        if (config.inputPrice !== undefined) {
-            this.inputPrice.set(cleanStr(config.inputPrice));
-        }
-        if (config.cacheInputPrice !== undefined) {
-            this.cacheInputPrice.set(cleanStr(config.cacheInputPrice));
-        }
-        if (config.outputPrice !== undefined) {
-            this.outputPrice.set(cleanStr(config.outputPrice));
-        }
-
         const settings = config.additionalSettings || {};
-        if (settings['topP'] !== undefined) {
-            this.topP.set(cleanStr(settings['topP']));
-        }
-        if (settings['topK'] !== undefined) {
-            this.topK.set(cleanStr(settings['topK']));
-        }
-        if (settings['minP'] !== undefined) {
-            this.minP.set(cleanStr(settings['minP']));
-        }
-        if (settings['repetitionPenalty'] !== undefined) {
-            this.repetitionPenalty.set(cleanStr(settings['repetitionPenalty']));
-        }
-        if (settings['enableThinking'] !== undefined) {
-            this.enableThinking.set(settings['enableThinking'] as boolean);
-        }
-        if (settings['reasoningEffort'] !== undefined) {
-            this.reasoningEffort.set(settings['reasoningEffort'] as string);
-        }
 
-        // Proactively fetch props to identify model and template
-        this.fetchProps();
+        return {
+            baseUrl: config.baseUrl ? config.baseUrl.replace(/\/$/, '') : 'http://localhost:8080',
+            modelId: cleanStr(config.modelId) || 'local-model',
+            temperature: cleanStr(config.temperature) as number | undefined,
+            frequencyPenalty: cleanStr(config.frequency_penalty) as number | undefined,
+            presencePenalty: cleanStr(config.presence_penalty) as number | undefined,
+            inputPrice: cleanStr(config.inputPrice) as number | undefined,
+            cacheInputPrice: cleanStr(config.cacheInputPrice) as number | undefined,
+            outputPrice: cleanStr(config.outputPrice) as number | undefined,
+            topP: cleanStr(settings['topP']) as number | undefined,
+            topK: cleanStr(settings['topK']) as number | undefined,
+            minP: cleanStr(settings['minP']) as number | undefined,
+            repetitionPenalty: cleanStr(settings['repetitionPenalty']) as number | undefined,
+            enableThinking: (settings['enableThinking'] === undefined ? false : settings['enableThinking']) as boolean,
+            reasoningEffort: (settings['reasoningEffort'] === undefined ? 'low' : settings['reasoningEffort']) as string
+        };
     }
 
-    private async fetchProps() {
-        try {
-            const response = await fetch(`${this.baseUrl()}/props`);
-            if (response.ok) {
-                const data = await response.json();
-                if (data.chat_template) {
-                    this.serverChatTemplate.set(data.chat_template);
-                }
-                // If modelId is still default or not set, use model_alias from server
-                if (data.model_alias && (this.modelId() === 'local-model' || !this.modelId())) {
-                    this.modelId.set(data.model_alias);
-                    console.log(`[LlamaV2] Model ID updated from server: ${data.model_alias}`);
-                }
-            }
-        } catch (e) {
-            console.warn('[LlamaV2] Failed to fetch server props', e);
-        }
-    }
-
-    isConfigured(): boolean {
-        return !!this.baseUrl().trim();
+    isConfigured(config: LLMProviderConfig): boolean {
+        return !!(config.baseUrl && config.baseUrl.trim());
     }
 
     getCapabilities(): LLMProviderCapabilities {
@@ -127,16 +61,17 @@ export class LlamaV2Service implements LLMProvider {
         };
     }
 
-    getAvailableModels(): LLMModelDefinition[] {
-        const modelId = this.modelId() || 'local-model';
+    getAvailableModels(config: LLMProviderConfig): LLMModelDefinition[] {
+        const c = this.extractConfig(config);
+        const modelId = c.modelId;
         return [
             {
                 id: modelId,
                 name: `Local Model (${modelId})`,
                 getRates: () => ({
-                    input: this.inputPrice() ?? 0,
-                    output: this.outputPrice() ?? 0,
-                    cached: this.cacheInputPrice() ?? 0,
+                    input: c.inputPrice ?? 0,
+                    output: c.outputPrice ?? 0,
+                    cached: c.cacheInputPrice ?? 0,
                     cacheStorage: 0
                 })
             }
@@ -144,24 +79,19 @@ export class LlamaV2Service implements LLMProvider {
     }
 
     getDefaultModelId(): string {
-        return this.modelId() || 'local-model';
-    }
-
-    getModelId(): string {
-        return this.modelId() || 'local-model';
+        return 'local-model';
     }
 
     async *generateContentStream(
+        providerConfig: LLMProviderConfig,
         contents: LLMContent[],
         systemInstruction: string,
         config: LLMGenerateConfig
     ): AsyncGenerator<LLMStreamChunk> {
-        const baseUrl = this.baseUrl();
-
-        // Ensure we have server info before starting if we're still on default
-        if (this.modelId() === 'local-model') {
-            await this.fetchProps();
-        }
+        const c = this.extractConfig(providerConfig);
+        const baseUrl = c.baseUrl;
+        // Don't wait for props dynamically during generation to stay stateless. 
+        // We will just pass the modelId as provided (or 'local-model').
 
         const messages: any[] = [
             ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
@@ -175,7 +105,7 @@ export class LlamaV2Service implements LLMProvider {
         let n_keep = -1;
         try {
             if (systemInstruction) {
-                n_keep = await this.countTokens(this.modelId() || 'local-model', [
+                n_keep = await this.countTokens(providerConfig, c.modelId, [
                     { role: 'system', parts: [{ text: systemInstruction }] }
                 ]);
             }
@@ -187,25 +117,25 @@ export class LlamaV2Service implements LLMProvider {
 
         // Map reasoning effort to token budget (llama.cpp uses reasoning_budget, not reasoning_effort)
         const reasoningBudgetMap: Record<string, number> = { low: 512, medium: 2048, high: 8192 };
-        const thinkingEnabled = this.enableThinking();
+        const thinkingEnabled = c.enableThinking;
         const reasoningBudget = thinkingEnabled
-            ? (reasoningBudgetMap[this.reasoningEffort()] ?? 2048)
+            ? (reasoningBudgetMap[c.reasoningEffort] ?? 2048)
             : 0;
 
         const requestBody: Record<string, unknown> = {
-            model: this.modelId() || 'local-model',
+            model: c.modelId,
             messages,
             stream: true,
             stream_options: { include_usage: true },
             cache_prompt: true,
             n_keep: n_keep,
-            ...(this.temperature() != null ? { temperature: this.temperature() } : {}),
-            ...(this.frequencyPenalty() != null ? { frequency_penalty: this.frequencyPenalty() } : {}),
-            ...(this.presencePenalty() != null ? { presence_penalty: this.presencePenalty() } : {}),
-            ...(this.topP() != null ? { top_p: this.topP() } : {}),
-            ...(this.topK() != null ? { top_k: this.topK() } : {}),
-            ...(this.minP() != null ? { min_p: this.minP() } : {}),
-            ...(this.repetitionPenalty() != null ? { repetition_penalty: this.repetitionPenalty() } : {}),
+            ...(c.temperature != null ? { temperature: c.temperature } : {}),
+            ...(c.frequencyPenalty != null ? { frequency_penalty: c.frequencyPenalty } : {}),
+            ...(c.presencePenalty != null ? { presence_penalty: c.presencePenalty } : {}),
+            ...(c.topP != null ? { top_p: c.topP } : {}),
+            ...(c.topK != null ? { top_k: c.topK } : {}),
+            ...(c.minP != null ? { min_p: c.minP } : {}),
+            ...(c.repetitionPenalty != null ? { repetition_penalty: c.repetitionPenalty } : {}),
             ...(config.responseSchema ? {
                 response_format: {
                     type: 'json_schema',
@@ -246,9 +176,14 @@ export class LlamaV2Service implements LLMProvider {
             try {
                 while (true) {
                     const { done, value } = await reader.read();
-                    if (done) break;
 
-                    buffer += decoder.decode(value, { stream: true });
+                    if (value) {
+                        buffer += decoder.decode(value, { stream: true });
+                    }
+                    if (done && buffer.trim()) {
+                        buffer += '\n'; // Flush remaining text in buffer
+                    }
+
                     const lines = buffer.split('\n');
                     buffer = lines.pop() || '';
 
@@ -271,17 +206,11 @@ export class LlamaV2Service implements LLMProvider {
                                 yield { text: delta.reasoning_content, thought: true };
                             }
 
-                            // Robust Thinking Detection: Some llama.cpp templates put thinking inside <|channel|>analysis
-                            if (delta?.content && (delta.content.includes('<|channel|>analysis') || delta.content.includes('<|start|>assistant<|channel|>analysis'))) {
-                                // This is thinking! Since we are yielding text, we should ideally mark it.
-                                // But if it's mixed in content, we just let it be or try to mark it.
-                                // For now, the JSON Scan above will naturally skip it if it's before '{'.
-                            }
-
                             // Usage and timings
                             if (data.usage || data.timings) {
                                 const usage = data.usage;
                                 const timings = data.timings;
+                                console.log('[llama-v2] SSE Stream End: Usage and Timings raw data:', { usage, timings });
                                 yield {
                                     usageMetadata: {
                                         // Prefer timings for more detail (cached vs active prompt)
@@ -295,6 +224,8 @@ export class LlamaV2Service implements LLMProvider {
                             }
                         } catch { /* Partial chunks */ }
                     }
+
+                    if (done) break;
                 }
             } finally {
                 reader.releaseLock();
@@ -306,11 +237,12 @@ export class LlamaV2Service implements LLMProvider {
         }
     }
 
-    async countTokens(_modelId: string, contents: LLMContent[]): Promise<number> {
+    async countTokens(providerConfig: LLMProviderConfig, _modelId: string, contents: LLMContent[]): Promise<number> {
+        const baseUrl = this.extractConfig(providerConfig).baseUrl;
         const text = contents.flatMap(c => c.parts).map(p => p.text || '').join('\n');
         if (!text) return 0;
         try {
-            const response = await fetch(`${this.baseUrl()}/tokenize`, {
+            const response = await fetch(`${baseUrl}/tokenize`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content: text })

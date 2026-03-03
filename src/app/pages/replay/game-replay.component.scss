@@ -1,0 +1,168 @@
+:host {
+
+    min-height: 0;
+}
+
+.replay-page {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.replay-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 24px;
+    flex-shrink: 0;
+
+    h2 {
+        margin: 0;
+        color: #58a6ff;
+        font-size: 1.3em;
+    }
+
+    .replay-date {
+        color: #8b949e;
+        font-size: 0.85em;
+        margin-left: auto;
+    }
+}
+
+.back-btn {
+    background: #21262d;
+    border: 1px solid #30363d;
+    color: #c9d1d9;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.2s;
+
+    &:hover {
+        background: #30363d;
+        border-color: #8b949e;
+    }
+}
+
+.loading,
+.not-found {
+    text-align: center;
+    padding: 60px 20px;
+    color: #8b949e;
+    font-size: 1.1em;
+}
+
+.replay-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    gap: 0;
+}
+
+.replay-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    padding: 16px;
+    border-right: 1px solid #30363d;
+    overflow-y: auto;
+
+    h3 {
+        margin: 0 0 12px;
+        color: #c9d1d9;
+        font-size: 1em;
+    }
+}
+
+.player-roles-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.player-role-item {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: #21262d;
+    font-size: 0.85em;
+
+    &.good-team {
+        border-left: 3px solid #3fb950;
+    }
+
+    &.evil-team {
+        border-left: 3px solid #f85149;
+    }
+}
+
+.player-name {
+    font-weight: 600;
+    color: #c9d1d9;
+}
+
+.player-role {
+    color: #8b949e;
+    font-size: 0.9em;
+}
+
+.player-model {
+    color: #8b949e;
+    font-size: 0.75em;
+    width: 100%;
+    opacity: 0.7;
+}
+
+.result-badge {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9em;
+    margin-bottom: 8px;
+
+    &.good {
+        background: rgba(63, 185, 80, 0.15);
+        color: #3fb950;
+        border: 1px solid rgba(63, 185, 80, 0.3);
+    }
+
+    &.evil {
+        background: rgba(248, 81, 73, 0.15);
+        color: #f85149;
+        border: 1px solid rgba(248, 81, 73, 0.3);
+    }
+}
+
+.merlin-badge {
+    color: #f85149;
+    font-size: 0.85em;
+    margin-top: 4px;
+}
+
+.replay-timeline {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+@media (max-width: 768px) {
+    .replay-content {
+        flex-direction: column;
+    }
+
+    .replay-sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #30363d;
+        max-height: 200px;
+    }
+}

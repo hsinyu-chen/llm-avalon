@@ -114,17 +114,15 @@ export class GameBoardComponent {
         let cachedTokens = 0;
         let completionTokens = 0;
         let totalCost = 0;
-        for (const p of this.state().players) {
-            if (p.agent.getTokenUsage) {
-                const usage = p.agent.getTokenUsage();
-                if (usage) {
-                    promptTokens += usage.promptTokens || 0;
-                    cachedTokens += usage.cachedTokens || 0;
-                    completionTokens += usage.completionTokens || 0;
-                    totalCost += usage.totalCost || 0;
-                }
-            }
+
+        // All usage data from events (single source of truth)
+        for (const e of this.events()) {
+            promptTokens += e.promptTokens || 0;
+            cachedTokens += e.cachedTokens || 0;
+            completionTokens += e.completionTokens || 0;
+            totalCost += e.cost || 0;
         }
+
         return { promptTokens, cachedTokens, completionTokens, totalCost };
     });
 
@@ -172,14 +170,13 @@ export class GameBoardComponent {
         lines.push('');
 
         lines.push(`## Players`);
-        lines.push(`| Name | Role | Team | Model | Note |`);
-        lines.push(`|------|------|------|-------|------|`);
+        lines.push(`| Name | Role | Team | Model |`);
+        lines.push(`|------|------|------|-------|`);
         for (const p of s.players) {
             const meta = ROLE_META[p.role];
             const team = meta.team === 'GOOD' ? '🔵 ' + this.i18n.translate('board.good') : '🔴 ' + this.i18n.translate('board.evil');
             const model = p.agent.modelName || 'N/A';
-            const note = (p.agent.getPersonalNote() || '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
-            lines.push(`| ${p.agent.name} | ${this.i18n.translate('roles.' + p.role)} | ${team} | ${model} | ${note} |`);
+            lines.push(`| ${p.agent.name} | ${this.i18n.translate('roles.' + p.role)} | ${team} | ${model} |`);
         }
         lines.push('');
 
@@ -226,6 +223,17 @@ export class GameBoardComponent {
     }
 
     private formatEventMarkdown(e: GameEvent): string {
+        let text = this._getEventMarkdownString(e);
+        if (text && (e.promptSpeed !== undefined || e.completionSpeed !== undefined)) {
+            const speedInfo: string[] = [];
+            if (e.promptSpeed !== undefined) speedInfo.push(`PP: ${e.promptSpeed.toFixed(1)} t/s`);
+            if (e.completionSpeed !== undefined) speedInfo.push(`Out: ${e.completionSpeed.toFixed(1)} t/s`);
+            if (speedInfo.length > 0) text += ` [${speedInfo.join(' | ')}]`;
+        }
+        return text;
+    }
+
+    private _getEventMarkdownString(e: GameEvent): string {
         switch (e.type) {
             case 'PHASE_CHANGE': {
                 const phaseNames: Record<string, string> = {

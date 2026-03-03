@@ -1,0 +1,47 @@
+<div class="replay-page">
+    <div class="replay-header">
+        <button class="back-btn" (click)="goBack()">{{ 'history.backToHistory' | translate }}</button>
+        <h2>{{ 'history.replayTitle' | translate }}</h2>
+        @if (record(); as rec) {
+        <span class="replay-date">{{ rec.createdAt | date:'yyyy/MM/dd HH:mm' }}</span>
+        }
+    </div>
+
+    @if (loading()) {
+    <div class="loading">Loading...</div>
+    } @else if (!record()) {
+    <div class="not-found">Record not found.</div>
+    } @else {
+    <div class="replay-content">
+        <aside class="replay-sidebar">
+            <h3>{{ 'history.playerRoles' | translate }}</h3>
+            <div class="player-roles-list">
+                @for (player of record()!.players; track player.id) {
+                <div class="player-role-item" [class.good-team]="player.team === 'Good'"
+                    [class.evil-team]="player.team === 'Evil'">
+                    <span class="player-name">{{ player.name }}</span>
+                    <span class="player-role">{{ player.role }}</span>
+                    @if (player.modelName) {
+                    <span class="player-model">{{ player.modelName }}</span>
+                    }
+                </div>
+                }
+            </div>
+
+            <div class="result-badge" [class.good]="record()!.winner === 'Good'"
+                [class.evil]="record()!.winner === 'Evil'">
+                {{ 'history.winner' | translate: { team: record()!.winner === 'Good' ? ('history.good' | translate) :
+                ('history.evil' | translate) } }}
+            </div>
+            @if (record()!.isMerlinKilled) {
+            <div class="merlin-badge">🗡️ {{ 'history.merlinKilled' | translate }}</div>
+            }
+        </aside>
+
+        <div class="replay-timeline">
+            <app-game-timeline [events]="record()!.events" [playerRoles]="playerRoles()"
+                [isGodView]="true"></app-game-timeline>
+        </div>
+    </div>
+    }
+</div>

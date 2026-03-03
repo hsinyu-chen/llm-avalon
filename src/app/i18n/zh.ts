@@ -87,7 +87,7 @@ export const zhTW = {
         resumeBtn: '▶ 繼續遊戲',
         resumeScroll: '恢復自動捲動',
         copyLog: '複製日誌',
-        updatingNotes: '大家正在更新自己的筆記...'
+        updatingNotes: '大家正在更新自己的筆記... 等待中 ({{names}})'
     },
     playerList: {
         title: '玩家列表',
@@ -295,6 +295,25 @@ export const zhTW = {
         send: '發送',
         pass: '跳過',
         remainingRounds: '剩餘發言輪次: {{count}}'
+    },
+    history: {
+        title: '遊戲紀錄',
+        empty: '尚無遊戲紀錄。玩一場遊戲就會出現在這裡！',
+        players: '{{count}} 位玩家',
+        winner: '勝方: {{team}}',
+        good: '正義',
+        evil: '邪惡',
+        merlinKilled: '梅林被刺殺',
+        delete: '刪除',
+        confirmDelete: '確定要刪除此遊戲紀錄？',
+        backToGame: '← 回到遊戲',
+        backToHistory: '← 回到紀錄',
+        replayTitle: '遊戲回放',
+        playerRoles: '玩家角色',
+        import: '匯入',
+        exportAll: '匯出全部',
+        importSuccess: '成功匯入 {{count}} 筆紀錄。',
+        importError: '匯入失敗，請檢查 JSON 檔案格式。',
     },
     common: {
         fetch: '抓取'

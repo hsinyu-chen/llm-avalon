@@ -89,7 +89,7 @@ export class GeminiConfigComponent {
   config = inject(LLM_CONFIG_DATA);
   private geminiService = inject(GeminiService);
 
-  models = this.geminiService.getAvailableModels();
+  get models() { return this.geminiService.getAvailableModels(this.config.settings); }
 
   // Make modelId reactive for computed properties
   modelId = signal(this.config.settings.modelId || this.geminiService.getDefaultModelId());

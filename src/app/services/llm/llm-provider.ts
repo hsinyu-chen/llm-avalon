@@ -168,40 +168,40 @@ export interface LLMProvider {
     // Required Methods
     // -------------------------------------------------------------------------
 
-    /**
-     * Initialize the provider with configuration.
-     * @param config Provider-specific configuration (API key, endpoint, model ID, etc.)
-     */
-    init(config: LLMProviderConfig): void;
+
 
 
 
     /**
      * Generate content with streaming response.
+     * @param config The LLM provider configuration to use.
      * @param contents The chat history/context
      * @param systemInstruction System-level prompt
-     * @param config Generation configuration
+     * @param genConfig Generation configuration
      * @returns Async iterator yielding response chunks
      */
     generateContentStream(
+        config: LLMProviderConfig,
         contents: LLMContent[],
         systemInstruction: string,
-        config: LLMGenerateConfig
+        genConfig: LLMGenerateConfig
     ): AsyncIterable<LLMStreamChunk>;
 
     /**
      * Count tokens for given content.
+     * @param config The LLM provider configuration to use.
      * @param modelId The model to use for tokenization
      * @param contents The content to tokenize
      * @returns Token count
      */
-    countTokens(modelId: string, contents: LLMContent[]): Promise<number>;
+    countTokens(config: LLMProviderConfig, modelId: string, contents: LLMContent[]): Promise<number>;
 
     /**
-     * Checks if the provider is correctly configured (e.g., API key, base URL).
+     * Checks if the provider config is correctly structured (e.g., API key, base URL).
+     * @param config The configuration to check.
      * @returns True if configured.
      */
-    isConfigured(): boolean;
+    isConfigured(config: LLMProviderConfig): boolean;
 
     /**
      * Get capability flags for this provider.
@@ -210,18 +210,14 @@ export interface LLMProvider {
 
     /**
      * Get available models for this provider with pricing info.
+     * @param config The configuration (may affect available models or pricing lookup).
      */
-    getAvailableModels(): LLMModelDefinition[];
+    getAvailableModels(config: LLMProviderConfig): LLMModelDefinition[];
 
     /**
      * Get the default model ID for this provider.
      */
     getDefaultModelId(): string;
-
-    /**
-     * Get the currently active model ID.
-     */
-    getModelId(): string;
 
     /**
      * Get a preview-friendly version of the contents.
@@ -238,6 +234,7 @@ export interface LLMProvider {
      * Create a context cache.
      */
     createCache?(
+        config: LLMProviderConfig,
         modelId: string,
         systemInstruction: string,
         contents: LLMContent[],
@@ -247,22 +244,22 @@ export interface LLMProvider {
     /**
      * Get cache status by name.
      */
-    getCache?(name: string): Promise<LLMCacheInfo | null>;
+    getCache?(config: LLMProviderConfig, name: string): Promise<LLMCacheInfo | null>;
 
     /**
      * Update cache TTL.
      */
-    updateCacheTTL?(name: string, ttlSeconds: number): Promise<LLMCacheInfo | null>;
+    updateCacheTTL?(config: LLMProviderConfig, name: string, ttlSeconds: number): Promise<LLMCacheInfo | null>;
 
     /**
      * Delete a specific cache.
      */
-    deleteCache?(name: string): Promise<void>;
+    deleteCache?(config: LLMProviderConfig, name: string): Promise<void>;
 
     /**
      * Delete all caches.
      */
-    deleteAllCaches?(): Promise<number>;
+    deleteAllCaches?(config: LLMProviderConfig): Promise<number>;
 
     /**
      * Component to use for provider-specific settings UI.

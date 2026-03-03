@@ -24,6 +24,10 @@ export interface BaseGameEvent {
     privateNotes?: Record<string, string>; // PlayerID -> Note content
     promptSpeed?: number;
     completionSpeed?: number;
+    promptTokens?: number;
+    completionTokens?: number;
+    cachedTokens?: number;
+    cost?: number;
 }
 
 export type GameEvent =

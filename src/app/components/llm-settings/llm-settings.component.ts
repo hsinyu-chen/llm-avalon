@@ -181,6 +181,7 @@ export class LLMSettingsComponent {
             if (!provider) throw new Error('Provider not found');
 
             const stream = provider.generateContentStream(
+                config.settings,
                 [{ role: 'user', parts: [{ text: 'Hello, are you alive? Please reply with a short greeting.' }] }],
                 'You are a testing assistant.',
                 { signal: AbortSignal.timeout(10000) }

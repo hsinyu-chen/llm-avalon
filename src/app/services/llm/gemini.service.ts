@@ -29,11 +29,6 @@ export class GeminiService implements LLMProvider {
     readonly providerName = 'gemini';
     settingsComponent?: Type<LLMSettingsComponent>;
 
-    private client: GoogleGenAI = null!;
-    private lastModelId: string = DEFAULT_GEMINI_MODEL_ID;
-    private apiKey = signal('');
-    private thinkingLevel: ThinkingLevel = ThinkingLevel.MINIMAL;
-
     private readonly defaultTools: Tool[] = [];
 
     // =========================================================================
@@ -81,7 +76,7 @@ export class GeminiService implements LLMProvider {
     /**
      * Get available Gemini models with pricing.
      */
-    getAvailableModels(): LLMModelDefinition[] {
+    getAvailableModels(config: LLMProviderConfig): LLMModelDefinition[] {
         return [
             {
                 id: 'gemini-3.1-pro-preview',
@@ -189,51 +184,44 @@ export class GeminiService implements LLMProvider {
         return DEFAULT_GEMINI_MODEL_ID;
     }
 
-    getModelId(): string {
-        return this.lastModelId;
+    private getClient(config: LLMProviderConfig): GoogleGenAI {
+        if (!config.apiKey) throw new Error('Gemini API key is required');
+        return new GoogleGenAI({ apiKey: config.apiKey });
+    }
+
+    private getModelId(config: LLMProviderConfig): string {
+        return config.modelId || DEFAULT_GEMINI_MODEL_ID;
     }
 
 
-    init(config: LLMProviderConfig): void {
-        this.apiKey.set(config.apiKey || '');
-        if (config.modelId || DEFAULT_GEMINI_MODEL_ID) {
-            this.initialize(
-                this.apiKey(),
-                config.modelId || DEFAULT_GEMINI_MODEL_ID
-            );
-        }
-        const thinkingLevel = config.additionalSettings?.['thinkingLevel'];
-        if (thinkingLevel) {
-            this.thinkingLevel = this.mapThinkingLevel(thinkingLevel as string);
-        }
-    }
-
-    isConfigured(): boolean {
-        return !!this.apiKey().trim();
+    isConfigured(config: LLMProviderConfig): boolean {
+        return !!(config.apiKey && config.apiKey.trim());
     }
 
     /**
      * Implements LLMProvider.generateContentStream using provider-agnostic types.
      */
     async *generateContentStream(
+        config: LLMProviderConfig,
         contents: LLMContent[],
         systemInstruction: string,
-        config: LLMGenerateConfig
+        genConfig: LLMGenerateConfig
     ): AsyncGenerator<LLMStreamChunk> {
         // Convert to Gemini format
         const geminiContents = contents.map(c => this.toGeminiContent(c));
 
-        // Use existing method
+        // Use existing method logic directly instead of proxy method to avoid passing too many flags
         const stream = await this.sendMessageStream(
+            config,
             geminiContents,
             systemInstruction,
-            config
+            genConfig
         );
 
         // Yield converted chunks
         for await (const chunk of stream) {
             // Check for abortion
-            if (config.signal?.aborted) {
+            if (genConfig.signal?.aborted) {
                 return; // Stop yielding
             }
 
@@ -290,31 +278,16 @@ export class GeminiService implements LLMProvider {
     // =========================================================================
 
     /**
-     * Initializes the Gemini client with the provided API key and model configuration.
-     * @param apiKey The Gemini API Key.
-     * @param modelId The Gemini Model ID.
-     */
-    initialize(apiKey: string, modelId: string) {
-        this.client = new GoogleGenAI({ apiKey });
-        this.lastModelId = modelId;
-    }
-
-    /**
      * Sends a stream of contents and system instructions to the Gemini model for generation.
-     * @param contents Array of Content objects representing chat history.
-     * @param systemInstruction The system-level prompt.
-     * @param cachedContentName Optional name of the context cache to use.
-     * @param responseSchema Optional JSON schema for structured output.
-     * @param responseMimeType Optional MIME type for the response (e.g., 'application/json').
-     * @param toolConfig Optional configuration for tools.
-     * @returns A streaming response object.
      */
     async sendMessageStream(
+        providerConfig: LLMProviderConfig,
         contents: Content[],
         systemInstruction: string,
         config: LLMGenerateConfig = {}
     ) {
-        if (!this.client) throw new Error('Gemini client not initialized. Call initialize() first.');
+        const client = this.getClient(providerConfig);
+        const lastModelId = this.getModelId(providerConfig);
 
         const cachedContentName = config.cachedContentName;
         const responseSchema = config.responseSchema as Schema;
@@ -322,10 +295,12 @@ export class GeminiService implements LLMProvider {
         const toolConfig = config.toolConfig;
 
         // Check if current model supports thinking
-        const currentModel = this.getAvailableModels().find(m => m.id === this.lastModelId);
+        const currentModel = this.getAvailableModels(providerConfig).find(m => m.id === lastModelId);
         const modelSupportsThinking = currentModel?.supportsThinking ?? false;
 
-        const currentThinkingLevel = this.thinkingLevel;
+        let currentThinkingLevel: ThinkingLevel = ThinkingLevel.MINIMAL;
+        const confLevel = providerConfig.additionalSettings?.['thinkingLevel'];
+        if (confLevel) currentThinkingLevel = this.mapThinkingLevel(confLevel as string);
 
         // Extract configuration with defaults from LLMProviderConfig if not in GenerateConfig
         const maxOutputTokens = config.maxOutputTokens;
@@ -334,7 +309,7 @@ export class GeminiService implements LLMProvider {
 
         // Version check: Gemini 2.0 and below benefit from frequency penalty to avoid repetition
         // Gemini 2.5 and Gemini 3+ models (like gemini-3-flash) do not support or do not need it
-        const modelVersionMatch = this.lastModelId.match(/gemini-(\d+\.?\d*)/);
+        const modelVersionMatch = lastModelId.match(/gemini-(\d+\.?\d*)/);
         const version = modelVersionMatch ? parseFloat(modelVersionMatch[1]) : 3.0;
         const isLegacyModel = version < 2.5;
 
@@ -403,12 +378,12 @@ export class GeminiService implements LLMProvider {
         if (toolConfig && !cachedContentName) generationConfig.toolConfig = toolConfig;
 
         const request: GenerateContentParameters = {
-            model: this.lastModelId,
+            model: lastModelId,
             contents: contents,
             config: generationConfig
         };
 
-        const response = await this.client.models.generateContentStream(request);
+        const response = await client.models.generateContentStream(request);
 
         return response;
     }
@@ -416,16 +391,23 @@ export class GeminiService implements LLMProvider {
 
     /**
      * Counts the number of tokens in a set of contents for a specific model.
+     * @param config The provider config
      * @param model The model ID.
      * @param contents Array of Content objects.
      * @returns The total token count.
      */
-    async countTokens(model: string, contents: Content[]): Promise<number> {
-        if (!this.client) return 0;
+    async countTokens(config: LLMProviderConfig, model: string, contents: LLMContent[]): Promise<number> {
+        let client;
         try {
-            const response = await this.client.models.countTokens({
+            client = this.getClient(config);
+        } catch { return 0; }
+
+        const geminiContents = contents.map(c => this.toGeminiContent(c));
+
+        try {
+            const response = await client.models.countTokens({
                 model: model,
-                contents: contents
+                contents: geminiContents
             });
             return response.totalTokens || 0;
         } catch (e) {
@@ -437,14 +419,16 @@ export class GeminiService implements LLMProvider {
     /**
      * Creates a context cache on the Gemini server.
      * Gemini-specific method for backward compatibility.
+     * @param config Provider configuration
      * @param model The model ID.
      * @param systemInstruction The system-level prompt to bake into the cache.
      * @param contents The content history to bake into the cache.
      * @param ttlSeconds The time-to-live for the cache in seconds.
      * @returns The created CachedContent object or null on failure.
      */
-    async createGeminiCache(model: string, systemInstruction: string, contents: Content[], ttlSeconds = 1800): Promise<CachedContent | null> {
-        if (!this.client) return null;
+    async createGeminiCache(configObj: LLMProviderConfig, model: string, systemInstruction: string, contents: Content[], ttlSeconds = 1800): Promise<CachedContent | null> {
+        let client;
+        try { client = this.getClient(configObj); } catch { return null; }
         try {
             const config: CreateCachedContentConfig = {
                 contents: contents, // Content[] matches ContentListUnion
@@ -460,7 +444,7 @@ export class GeminiService implements LLMProvider {
                 config
             };
 
-            const cache = await this.client.caches.create(params);
+            const cache = await client.caches.create(params);
             return cache;
         } catch (e) {
             console.warn('Cache creation failed:', e);
@@ -475,10 +459,11 @@ export class GeminiService implements LLMProvider {
      * @param ttlSeconds The new time-to-live in seconds.
      * @returns The updated CachedContent object or null on failure.
      */
-    async updateGeminiCache(name: string, ttlSeconds: number): Promise<CachedContent | null> {
-        if (!this.client) return null;
+    async updateGeminiCache(configObj: LLMProviderConfig, name: string, ttlSeconds: number): Promise<CachedContent | null> {
+        let client;
+        try { client = this.getClient(configObj); } catch { return null; }
         try {
-            const cache = await this.client.caches.update({
+            const cache = await client.caches.update({
                 name,
                 config: {
                     ttl: ttlSeconds + ' s'
@@ -496,10 +481,11 @@ export class GeminiService implements LLMProvider {
      * Deletes a specific context cache from the server.
      * @param name The name of the cache resource.
      */
-    async deleteCache(name: string): Promise<void> {
-        if (!this.client) return;
+    async deleteCache(configObj: LLMProviderConfig, name: string): Promise<void> {
+        let client;
+        try { client = this.getClient(configObj); } catch { return; }
         try {
-            await this.client.caches.delete({ name });
+            await client.caches.delete({ name });
             console.log('Cache deleted:', name);
         } catch (e) {
             console.warn('Failed to delete cache:', e);
@@ -512,10 +498,11 @@ export class GeminiService implements LLMProvider {
      * @param name The name of the cache resource.
      * @returns The CachedContent object or null if not found.
      */
-    async getGeminiCache(name: string): Promise<CachedContent | null> {
-        if (!this.client) return null;
+    async getGeminiCache(configObj: LLMProviderConfig, name: string): Promise<CachedContent | null> {
+        let client;
+        try { client = this.getClient(configObj); } catch { return null; }
         try {
-            const cache = await this.client.caches.get({ name });
+            const cache = await client.caches.get({ name });
             return cache;
         } catch (e) {
             console.warn('Failed to get cache:', name, e);
@@ -527,15 +514,16 @@ export class GeminiService implements LLMProvider {
      * Lists and deletes all context caches belongs to the API key on the server.
      * @returns The total number of caches deleted.
      */
-    async listAndDeleteAllCaches(): Promise<number> {
-        if (!this.client) return 0;
+    async listAndDeleteAllCaches(configObj: LLMProviderConfig): Promise<number> {
+        let client;
+        try { client = this.getClient(configObj); } catch { return 0; }
         let count = 0;
         try {
-            const list = await this.client.caches.list();
+            const list = await client.caches.list();
             for await (const cache of list) {
                 if (cache.name) {
                     try {
-                        await this.client.caches.delete({ name: cache.name });
+                        await client.caches.delete({ name: cache.name });
                         console.log('Deleted cache:', cache.name);
                         count++;
                     } catch (e) {
@@ -558,13 +546,14 @@ export class GeminiService implements LLMProvider {
      * LLMProvider interface: Create a context cache.
      */
     async createCache(
+        config: LLMProviderConfig,
         modelId: string,
         systemInstruction: string,
         contents: LLMContent[],
         ttlSeconds: number
     ): Promise<LLMCacheInfo | null> {
         const geminiContents = contents.map(c => this.toGeminiContent(c));
-        const result = await this.createGeminiCache(modelId, systemInstruction, geminiContents, ttlSeconds);
+        const result = await this.createGeminiCache(config, modelId, systemInstruction, geminiContents, ttlSeconds);
         if (!result) return null;
         return {
             name: result.name || '',
@@ -579,8 +568,8 @@ export class GeminiService implements LLMProvider {
     /**
      * LLMProvider interface: Get cache status by name.
      */
-    async getCache(name: string): Promise<LLMCacheInfo | null> {
-        const result = await this.getGeminiCache(name);
+    async getCache(config: LLMProviderConfig, name: string): Promise<LLMCacheInfo | null> {
+        const result = await this.getGeminiCache(config, name);
         if (!result) return null;
         return {
             name: result.name || '',
@@ -595,8 +584,8 @@ export class GeminiService implements LLMProvider {
     /**
      * LLMProvider interface: Update cache TTL.
      */
-    async updateCacheTTL(name: string, ttlSeconds: number): Promise<LLMCacheInfo | null> {
-        const result = await this.updateGeminiCache(name, ttlSeconds);
+    async updateCacheTTL(config: LLMProviderConfig, name: string, ttlSeconds: number): Promise<LLMCacheInfo | null> {
+        const result = await this.updateGeminiCache(config, name, ttlSeconds);
         if (!result) return null;
         return {
             name: result.name || '',
@@ -611,8 +600,8 @@ export class GeminiService implements LLMProvider {
     /**
      * LLMProvider interface: Delete all caches.
      */
-    async deleteAllCaches(): Promise<number> {
-        return this.listAndDeleteAllCaches();
+    async deleteAllCaches(config: LLMProviderConfig): Promise<number> {
+        return this.listAndDeleteAllCaches(config);
     }
 
 

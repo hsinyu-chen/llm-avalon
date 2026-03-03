@@ -16,43 +16,21 @@ export class LLMManagerService {
     // List of all configs from storage
     readonly configs = this.storage.configs;
 
-    // Active config (defaults to the one marked as isDefault)
-    private _activeConfig = signal<LLMConfig | null>(null);
-    readonly activeConfig = this._activeConfig.asReadonly();
-
-    constructor() {
-        effect(() => {
-            const currentConfigs = this.configs();
-            if (currentConfigs.length > 0 && !this._activeConfig()) {
-                const def = currentConfigs.find(c => c.isDefault) || currentConfigs[0];
-                this.setActiveConfig(def);
-            }
-        });
-    }
-
     /**
-     * Set the active LLM configuration.
-     * This will also activate the corresponding provider in the registry.
+     * Get the default LLM configuration.
      */
-    setActiveConfig(config: LLMConfig): void {
-        this._activeConfig.set(config);
-        this.registry.setActive(config.provider);
-        const provider = this.registry.getActive();
-        if (provider) {
-            provider.init(config.settings);
-        }
+    getDefaultConfig(): LLMConfig | undefined {
+        const currentConfigs = this.configs();
+        if (currentConfigs.length === 0) return undefined;
+        return currentConfigs.find(c => c.isDefault) || currentConfigs[0];
     }
 
     /**
-     * Get a provider initialized with a specific config.
-     * Note: Because providers are singletons, this sets the global state of that provider.
+     * Get a provider for a specific config.
+     * Providers are stateless singletons now, so this just returns the instance.
      */
     getProviderForConfig(config: LLMConfig): LLMProvider | undefined {
-        const provider = this.registry.getProvider(config.provider);
-        if (provider) {
-            provider.init(config.settings);
-        }
-        return provider;
+        return this.registry.getProvider(config.provider);
     }
 
     /**
@@ -62,6 +40,10 @@ export class LLMManagerService {
         const config = await this.storage.getById(configId);
         if (!config) return undefined;
         return this.getProviderForConfig(config);
+    }
+
+    async getConfigById(configId: string): Promise<LLMConfig | undefined> {
+        return this.storage.getById(configId);
     }
 
     /**

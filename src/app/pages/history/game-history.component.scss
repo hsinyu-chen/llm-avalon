@@ -1,0 +1,200 @@
+.history-page {
+    padding: 24px;
+    max-width: 960px;
+    margin: 0 auto;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.history-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+
+    h2 {
+        margin: 0;
+        color: #58a6ff;
+        font-size: 1.4em;
+    }
+}
+
+.header-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.action-btn {
+    background: #21262d;
+    border: 1px solid #30363d;
+    color: #c9d1d9;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.2s;
+
+    &:hover {
+        background: #30363d;
+        border-color: #8b949e;
+    }
+}
+
+.back-btn {
+    background: #21262d;
+    border: 1px solid #30363d;
+    color: #c9d1d9;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.2s;
+
+    &:hover {
+        background: #30363d;
+        border-color: #8b949e;
+    }
+}
+
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: #8b949e;
+
+    .empty-icon {
+        font-size: 3em;
+        margin-bottom: 16px;
+    }
+
+    p {
+        font-size: 1.1em;
+    }
+}
+
+.records-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.record-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+        border-color: #58a6ff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(88, 166, 255, 0.15);
+    }
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+
+    .date {
+        color: #8b949e;
+        font-size: 0.85em;
+    }
+}
+
+.card-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1em;
+    padding: 4px 6px;
+    border-radius: 4px;
+    opacity: 0.5;
+    transition: all 0.2s;
+
+    &:hover {
+        opacity: 1;
+    }
+
+    &.delete-btn:hover {
+        background: #3e1b1b;
+    }
+}
+
+.card-body {
+    margin-bottom: 12px;
+}
+
+.winner-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    font-weight: 600;
+    margin-bottom: 8px;
+
+    &.good {
+        background: rgba(63, 185, 80, 0.15);
+        color: #3fb950;
+        border: 1px solid rgba(63, 185, 80, 0.3);
+    }
+
+    &.evil {
+        background: rgba(248, 81, 73, 0.15);
+        color: #f85149;
+        border: 1px solid rgba(248, 81, 73, 0.3);
+    }
+}
+
+.player-count {
+    color: #8b949e;
+    font-size: 0.9em;
+}
+
+.merlin-killed {
+    color: #f85149;
+    font-size: 0.85em;
+    margin-top: 4px;
+}
+
+.token-usage {
+    color: #8b949e;
+    font-size: 0.8em;
+    margin-top: 4px;
+}
+
+.card-footer {
+    border-top: 1px solid #21262d;
+    padding-top: 10px;
+}
+
+.player-names {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.player-tag {
+    font-size: 0.75em;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: #21262d;
+    color: #c9d1d9;
+
+    &.good-team {
+        color: #3fb950;
+    }
+
+    &.evil-team {
+        color: #f85149;
+    }
+}

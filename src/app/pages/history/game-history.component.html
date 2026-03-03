@@ -1,0 +1,62 @@
+<div class="history-page">
+    <div class="history-header">
+        <button class="back-btn" (click)="goToGame()">{{ 'history.backToGame' | translate }}</button>
+        <h2>{{ 'history.title' | translate }}</h2>
+        <div class="header-actions">
+            <button class="action-btn" (click)="triggerImport()">📥 {{ 'history.import' | translate }}</button>
+            @if (records().length > 0) {
+            <button class="action-btn" (click)="exportAll()">📤 {{ 'history.exportAll' | translate }}</button>
+            }
+        </div>
+    </div>
+
+    <input #fileInput type="file" accept=".json" (change)="onFileSelected($event)" hidden>
+
+    @if (records().length === 0) {
+    <div class="empty-state">
+        <div class="empty-icon">📜</div>
+        <p>{{ 'history.empty' | translate }}</p>
+    </div>
+    } @else {
+    <div class="records-grid">
+        @for (record of records(); track record.id) {
+        <div class="record-card" (click)="openRecord(record.id)">
+            <div class="card-header">
+                <span class="date">{{ record.createdAt | date:'yyyy/MM/dd HH:mm' }}</span>
+                <div class="card-actions">
+                    <button class="icon-btn" (click)="exportRecord($event, record.id)" title="Export">📤</button>
+                    <button class="icon-btn delete-btn" (click)="deleteRecord($event, record.id)"
+                        [title]="'history.delete' | translate">🗑️</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="winner-badge" [class.good]="record.winner === 'Good'"
+                    [class.evil]="record.winner === 'Evil'">
+                    {{ record.winner === 'Good' ? ('history.good' | translate) : ('history.evil' | translate) }}
+                </div>
+                <div class="player-count">{{ 'history.players' | translate: { count: record.playerCount } }}</div>
+                @if (record.isMerlinKilled) {
+                <div class="merlin-killed">🗡️ {{ 'history.merlinKilled' | translate }}</div>
+                }
+                @if (record.tokenUsage) {
+                <div class="token-usage">
+                    🎯 {{ formatTokens(record.tokenUsage.promptTokens + record.tokenUsage.completionTokens) }} tokens
+                    @if (record.tokenUsage.totalCost > 0) {
+                    · ${{ record.tokenUsage.totalCost | number:'1.4-4' }}
+                    }
+                </div>
+                }
+            </div>
+            <div class="card-footer">
+                <div class="player-names">
+                    @for (player of record.players; track player.id) {
+                    <span class="player-tag" [class.good-team]="player.team === 'Good'"
+                        [class.evil-team]="player.team === 'Evil'">{{ player.name }}</span>
+                    }
+                </div>
+            </div>
+        </div>
+        }
+    </div>
+    }
+</div>

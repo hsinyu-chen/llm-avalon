@@ -1,6 +1,42 @@
 <div class="timeline-container">
     <h3>{{ 'timeline.title' | translate }}</h3>
 
+    <ng-template #agentMetrics let-event="event" let-playerName="playerName" let-showThinking="showThinking">
+        @if (showGodView()) {
+        @if (event.promptText) {
+        <button class="debug-prompt-btn" (click)="openPromptDialog(event.promptText)" title="View Prompt">🔍</button>
+        }
+        @if (event.retryLogs && event.retryLogs.length > 0) {
+        <button class="debug-prompt-btn retry-logs-btn" (click)="openRetryLogsDialog(event.retryLogs)"
+            title="View Retry Logs">📜</button>
+        }
+        @if (event.thought?.trim()) {
+        <button class="debug-prompt-btn" (click)="openReasoningDialog(undefined, event.thought)"
+            title="View Reasoning">🧠</button>
+        }
+        }
+        @if (event.promptSpeed) {
+        <span class="speed-badge pp-speed">PP: {{ event.promptSpeed.toFixed(1) }} t/s</span>
+        }
+        @if (event.completionSpeed) {
+        <span class="speed-badge completion-speed">Out: {{ event.completionSpeed.toFixed(1) }} t/s</span>
+        }
+        @if (getAgentModelName(playerName); as modelName) {
+        <div class="model-badge">{{ modelName }}</div>
+        }
+        @if (showThinking && event.isThinking) {
+        <div class="thinking-badge">
+            <span class="spinner"></span> {{ 'playerList.thinking' | translate }}
+        </div>
+        }
+        @if (event.status === 'error') {
+        <div class="error-badge">
+            <span>⚠️ Error</span>
+            <button class="retry-btn" (click)="onRetry(event)">Retry</button>
+        </div>
+        }
+    </ng-template>
+
     <div class="timeline-scroll" #scrollFrame (wheel)="onUserInteraction()" (touchmove)="onUserInteraction()">
         @for (group of groupedEvents(); track group.round) {
         <details [open]="group.isOpen" class="round-group">
@@ -35,39 +71,8 @@
                             </span>
                             }
                             }
-                            @if (showGodView()) {
-                            @if (event.promptText) {
-                            <button class="debug-prompt-btn" (click)="openPromptDialog(event.promptText)"
-                                title="View Prompt">🔍</button>
-                            }
-                            @if (event.retryLogs && event.retryLogs.length > 0) {
-                            <button class="debug-prompt-btn retry-logs-btn"
-                                (click)="openRetryLogsDialog(event.retryLogs)" title="View Retry Logs">📜</button>
-                            }
-                            @if (event.reasoning || event.thought) {
-                            <button class="debug-prompt-btn"
-                                (click)="openReasoningDialog(event.reasoning, event.thought)"
-                                title="View Reasoning">🧠</button>
-                            }
-                            }
-                            @if (supportsSpeedMetrics()) {
-                            @if (event.promptSpeed) {
-                            <span class="speed-badge pp-speed">PP: {{ event.promptSpeed.toFixed(1) }} t/s</span>
-                            }
-                            @if (event.completionSpeed) {
-                            <span class="speed-badge completion-speed">Out: {{ event.completionSpeed.toFixed(1) }}
-                                t/s</span>
-                            }
-                            }
-                            @if (getAgentModelName(event.playerName); as modelName) {
-                            <div class="model-badge">{{ modelName }}</div>
-                            }
-                            @if (event.status === 'error') {
-                            <div class="error-badge">
-                                <span>⚠️ Error</span>
-                                <button class="retry-btn" (click)="onRetry(event)">Retry</button>
-                            </div>
-                            }
+                            <ng-container
+                                *ngTemplateOutlet="agentMetrics; context: { event: event, playerName: event.playerName }"></ng-container>
                         </div>
                         @if (event.error) {
                         <div class="error-message">{{ event.error }}</div>
@@ -114,49 +119,13 @@
                     <div class="card-body">
                         <strong>{{ event.leaderName }}</strong>
 
-                        @if (showGodView()) {
-                        @if (event.promptText) {
-                        <button class="debug-prompt-btn" (click)="openPromptDialog(event.promptText)"
-                            title="View Prompt">🔍</button>
-                        }
-                        @if (event.retryLogs && event.retryLogs.length > 0) {
-                        <button class="debug-prompt-btn retry-logs-btn" (click)="openRetryLogsDialog(event.retryLogs)"
-                            title="View Retry Logs">📜</button>
-                        }
-                        @if (event.reasoning || event.thought) {
-                        <button class="debug-prompt-btn" (click)="openReasoningDialog(event.reasoning, event.thought)"
-                            title="View Reasoning">🧠</button>
-                        }
-                        }
-                        @if (supportsSpeedMetrics()) {
-                        @if (event.promptSpeed) {
-                        <span class="speed-badge pp-speed">PP: {{ event.promptSpeed.toFixed(1) }} t/s</span>
-                        }
-                        @if (event.completionSpeed) {
-                        <span class="speed-badge completion-speed">Out: {{ event.completionSpeed.toFixed(1) }}
-                            t/s</span>
-                        }
-                        }
-                        @if (getAgentModelName(event.leaderName); as modelName) {
-                        <div class="model-badge">{{ modelName }}</div>
-                        }
-
-                        @if (event.isThinking) {
-                        <div class="thinking-badge">
-                            <span class="spinner"></span> {{ 'playerList.thinking' | translate }}
-                        </div>
-                        }
-                        @if (event.status === 'error') {
-                        <div class="error-badge">
-                            <span>⚠️ Error</span>
-                            <button class="retry-btn" (click)="onRetry(event)">Retry</button>
-                        </div>
-                        }
-                        {{ 'board.proposeBtn' | translate }}:
+                        <ng-container
+                            *ngTemplateOutlet="agentMetrics; context: { event: event, playerName: event.leaderName, showThinking: true }"></ng-container>
                         @if (event.error) {
                         <div class="error-message">{{ event.error }}</div>
                         }
                         <div class="team-list">
+                            <span>{{ 'board.proposeBtn' | translate }}:</span>
                             @for (name of event.teamNames; track name) {
                             <span class="team-member">{{ name }}</span>
                             }
@@ -316,44 +285,8 @@
                     <div class="card-body">
                         <strong>{{ event.playerName }}</strong>
 
-                        @if (showGodView()) {
-                        @if (event.promptText) {
-                        <button class="debug-prompt-btn" (click)="openPromptDialog(event.promptText)"
-                            title="View Prompt">🔍</button>
-                        }
-                        @if (event.retryLogs && event.retryLogs.length > 0) {
-                        <button class="debug-prompt-btn retry-logs-btn" (click)="openRetryLogsDialog(event.retryLogs)"
-                            title="View Retry Logs">📜</button>
-                        }
-                        @if (event.reasoning || event.thought) {
-                        <button class="debug-prompt-btn" (click)="openReasoningDialog(event.reasoning, event.thought)"
-                            title="View Reasoning">🧠</button>
-                        }
-                        }
-                        @if (supportsSpeedMetrics()) {
-                        @if (event.promptSpeed) {
-                        <span class="speed-badge pp-speed">PP: {{ event.promptSpeed.toFixed(1) }} t/s</span>
-                        }
-                        @if (event.completionSpeed) {
-                        <span class="speed-badge completion-speed">Out: {{ event.completionSpeed.toFixed(1) }}
-                            t/s</span>
-                        }
-                        }
-                        @if (getAgentModelName(event.playerName); as modelName) {
-                        <div class="model-badge">{{ modelName }}</div>
-                        }
-
-                        @if (event.isThinking) {
-                        <div class="thinking-badge">
-                            <span class="spinner"></span> {{ 'playerList.thinking' | translate }}
-                        </div>
-                        }
-                        @if (event.status === 'error') {
-                        <div class="error-badge">
-                            <span>⚠️ Error</span>
-                            <button class="retry-btn" (click)="onRetry(event)">Retry</button>
-                        </div>
-                        }
+                        <ng-container
+                            *ngTemplateOutlet="agentMetrics; context: { event: event, playerName: event.playerName, showThinking: true }"></ng-container>
                         {{ 'board.assassinateBtn' | translate }}:
                         @if (event.error) {
                         <div class="error-message">{{ event.error }}</div>
@@ -426,40 +359,8 @@
                             </span>
                             }
                             }
-                            @if (showGodView()) {
-                            @if (event.promptText) {
-                            <button class="debug-prompt-btn" (click)="openPromptDialog(event.promptText)"
-                                title="View Prompt">🔍</button>
-                            }
-                            @if (event.reasoning || event.thought) {
-                            <button class="debug-prompt-btn"
-                                (click)="openReasoningDialog(event.reasoning, event.thought)"
-                                title="View Reasoning">🧠</button>
-                            }
-                            }
-                            @if (supportsSpeedMetrics()) {
-                            @if (event.promptSpeed) {
-                            <span class="speed-badge pp-speed">PP: {{ event.promptSpeed.toFixed(1) }} t/s</span>
-                            }
-                            @if (event.completionSpeed) {
-                            <span class="speed-badge completion-speed">Out: {{ event.completionSpeed.toFixed(1) }}
-                                t/s</span>
-                            }
-                            }
-                            @if (getAgentModelName(event.playerName); as modelName) {
-                            <div class="model-badge">{{ modelName }}</div>
-                            }
-                            @if (event.isThinking) {
-                            <div class="thinking-badge">
-                                <span class="spinner"></span> {{ 'playerList.thinking' | translate }}
-                            </div>
-                            }
-                            @if (event.status === 'error') {
-                            <div class="error-badge">
-                                <span>⚠️ Error</span>
-                                <button class="retry-btn" (click)="onRetry(event)">Retry</button>
-                            </div>
-                            }
+                            <ng-container
+                                *ngTemplateOutlet="agentMetrics; context: { event: event, playerName: event.playerName, showThinking: true }"></ng-container>
                         </div>
                         @if (event.error) {
                         <div class="error-message">{{ event.error }}</div>
@@ -505,7 +406,8 @@
         }
         @if (isUpdatingNotes()) {
         <div class="updating-notes-status">
-            <span class="spinner"></span> {{ 'board.updatingNotes' | translate }}
+            <span class="spinner"></span> {{ 'board.updatingNotes' | translate : { names:
+            updatingNotePlayerNames().join(', ') } }}
         </div>
         }
     </div>
@@ -549,4 +451,3 @@
         </div>
     </dialog>
 </div>
-```

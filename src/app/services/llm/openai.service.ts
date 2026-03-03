@@ -21,63 +21,29 @@ export class OpenAIService implements LLMProvider {
     readonly providerName = 'openai';
     settingsComponent?: Type<LLMSettingsComponent>;
 
-    private baseUrl = signal('https://api.openai.com/v1');
-    private apiKey = signal('');
-    private modelId = signal<string | undefined>(undefined);
-    private temperature = signal<number | undefined>(undefined);
-    private frequencyPenalty = signal<number | undefined>(undefined);
-    private presencePenalty = signal<number | undefined>(undefined);
-    private inputPrice = signal<number | undefined>(undefined);
-    private cacheInputPrice = signal<number | undefined>(undefined);
-    private outputPrice = signal<number | undefined>(undefined);
-    private useChatTemplateKwargs = signal<boolean>(false);
-    private enableThinking = signal<boolean>(false);
-    private reasoningEffort = signal<string>('low');
-
-    init(config: LLMProviderConfig): void {
+    // Stateless helper
+    private extractConfig(config: LLMProviderConfig) {
         const cleanStr = (val: any) => (typeof val === 'string' && val.trim() === '') ? undefined : val;
-
-        if (config.baseUrl) {
-            this.baseUrl.set(config.baseUrl.replace(/\/$/, ''));
-        }
-        if (config.apiKey !== undefined) {
-            this.apiKey.set(config.apiKey);
-        }
-        if (config.modelId !== undefined) {
-            this.modelId.set(cleanStr(config.modelId));
-        }
-        if (config.temperature !== undefined) {
-            this.temperature.set(cleanStr(config.temperature));
-        }
-        if (config.frequency_penalty !== undefined) {
-            this.frequencyPenalty.set(cleanStr(config.frequency_penalty));
-        }
-        if (config.presence_penalty !== undefined) {
-            this.presencePenalty.set(cleanStr(config.presence_penalty));
-        }
-        if (config.inputPrice !== undefined) {
-            this.inputPrice.set(cleanStr(config.inputPrice));
-        }
-        if (config.cacheInputPrice !== undefined) {
-            this.cacheInputPrice.set(cleanStr(config.cacheInputPrice));
-        }
-        if (config.outputPrice !== undefined) {
-            this.outputPrice.set(cleanStr(config.outputPrice));
-        }
         const settings = config.additionalSettings || {};
-        if (settings['useChatTemplateKwargs'] !== undefined) {
-            this.useChatTemplateKwargs.set(settings['useChatTemplateKwargs'] as boolean);
-        }
-        if (settings['enableThinking'] !== undefined) {
-            this.enableThinking.set(settings['enableThinking'] as boolean);
-        }
-        if (settings['reasoningEffort'] !== undefined) {
-            this.reasoningEffort.set(settings['reasoningEffort'] as string);
-        }
+
+        return {
+            baseUrl: config.baseUrl ? config.baseUrl.replace(/\/$/, '') : 'https://api.openai.com/v1',
+            apiKey: config.apiKey || '',
+            modelId: cleanStr(config.modelId) || 'gpt-4o',
+            temperature: cleanStr(config.temperature) as number | undefined,
+            frequencyPenalty: cleanStr(config.frequency_penalty) as number | undefined,
+            presencePenalty: cleanStr(config.presence_penalty) as number | undefined,
+            inputPrice: cleanStr(config.inputPrice) as number | undefined,
+            cacheInputPrice: cleanStr(config.cacheInputPrice) as number | undefined,
+            outputPrice: cleanStr(config.outputPrice) as number | undefined,
+            useChatTemplateKwargs: (settings['useChatTemplateKwargs'] === undefined ? false : settings['useChatTemplateKwargs']) as boolean,
+            enableThinking: (settings['enableThinking'] === undefined ? false : settings['enableThinking']) as boolean,
+            reasoningEffort: (settings['reasoningEffort'] === undefined ? 'low' : settings['reasoningEffort']) as string
+        };
     }
 
-    isConfigured(): boolean {
-        return !!this.apiKey().trim() && !!this.baseUrl().trim();
+    isConfigured(config: LLMProviderConfig): boolean {
+        return !!(config.apiKey && config.apiKey.trim()) && !!(config.baseUrl && config.baseUrl.trim());
     }
 
     getCapabilities(): LLMProviderCapabilities {
@@ -90,38 +56,37 @@ export class OpenAIService implements LLMProvider {
         };
     }
 
-    getAvailableModels(): LLMModelDefinition[] {
-        const id = this.modelId() || 'gpt-4o';
+    getAvailableModels(config: LLMProviderConfig): LLMModelDefinition[] {
+        const c = this.extractConfig(config);
+        const id = c.modelId;
         return [
             {
                 id: id,
                 name: `OpenAI: ${id}`,
                 getRates: () => ({
-                    input: this.inputPrice() ?? 0,
-                    cached: this.cacheInputPrice() ?? 0,
-                    output: this.outputPrice() ?? 0
+                    input: c.inputPrice ?? 0,
+                    cached: c.cacheInputPrice ?? 0,
+                    output: c.outputPrice ?? 0
                 })
             }
         ];
     }
 
     getDefaultModelId(): string {
-        return this.modelId() || 'gpt-4o';
-    }
-
-    getModelId(): string {
-        return this.modelId() || 'gpt-4o';
+        return 'gpt-4o';
     }
 
 
 
     async *generateContentStream(
+        providerConfig: LLMProviderConfig,
         contents: LLMContent[],
         systemInstruction: string,
         config: LLMGenerateConfig
     ): AsyncGenerator<LLMStreamChunk> {
-        const baseUrl = this.baseUrl();
-        const apiKey = this.apiKey();
+        const c = this.extractConfig(providerConfig);
+        const baseUrl = c.baseUrl;
+        const apiKey = c.apiKey;
 
         const messages = [
             { role: 'system', content: systemInstruction },
@@ -132,13 +97,13 @@ export class OpenAIService implements LLMProvider {
         ];
 
         const requestBody: Record<string, unknown> = {
-            model: this.modelId() || 'gpt-4o',
+            model: c.modelId,
             messages,
             stream: true,
             stream_options: { include_usage: true },
-            ...(this.temperature() != null ? { temperature: this.temperature() } : {}),
-            ...(this.frequencyPenalty() != null ? { frequency_penalty: this.frequencyPenalty() } : {}),
-            ...(this.presencePenalty() != null ? { presence_penalty: this.presencePenalty() } : {}),
+            ...(c.temperature != null ? { temperature: c.temperature } : {}),
+            ...(c.frequencyPenalty != null ? { frequency_penalty: c.frequencyPenalty } : {}),
+            ...(c.presencePenalty != null ? { presence_penalty: c.presencePenalty } : {}),
             ...(config.responseSchema ? {
                 response_format: {
                     type: 'json_schema',
@@ -149,11 +114,11 @@ export class OpenAIService implements LLMProvider {
                     }
                 },
             } : {}),
-            ...(this.useChatTemplateKwargs() ? {
+            ...(c.useChatTemplateKwargs ? {
                 extra_body: {
                     chat_template_kwargs: {
-                        enable_thinking: this.enableThinking(),
-                        reasoning_effort: this.reasoningEffort()
+                        enable_thinking: c.enableThinking,
+                        reasoning_effort: c.reasoningEffort
                     }
                 }
             } : {})
@@ -234,7 +199,7 @@ export class OpenAIService implements LLMProvider {
         }
     }
 
-    async countTokens(_modelId: string, contents: LLMContent[]): Promise<number> {
+    async countTokens(providerConfig: LLMProviderConfig, _modelId: string, contents: LLMContent[]): Promise<number> {
         // Rough estimate for OpenAI
         const text = contents.flatMap(c => c.parts).map(p => p.text || '').join('\n');
         return Math.ceil(text.length / 4);

@@ -6,6 +6,10 @@ import { IAgent, SpeechEntry, BaseGameContext, SpeakContext } from '../models/ag
 import { GAME_CONFIGS } from '../models/game-config';
 import { I18nService } from '../i18n/i18n.service';
 import { AgentFatalError } from '../models/errors';
+import { GameRecordService } from './game-record.service';
+import { GameRecord, GameRecordPlayer } from '../models/game-record';
+import { WakeLockService } from './wake-lock.service';
+
 
 @Injectable({
     providedIn: 'root'
@@ -37,7 +41,8 @@ export class GameEngineService {
     readonly currentRound = computed(() => this._state().currentRound);
     readonly isPaused = computed(() => this._state().isPaused);
     readonly isThinking = computed(() => this._state().isThinking);
-    readonly isUpdatingNotes = computed(() => !!this._state().isUpdatingNotes);
+    readonly isUpdatingNotes = computed(() => !!this._state().updatingNotePlayerIds?.length);
+    readonly updatingNotePlayerIds = computed(() => this._state().updatingNotePlayerIds || []);
 
     // Flag to prevent multiple parallel loops
     private _isRunningLoop = false;
@@ -49,6 +54,9 @@ export class GameEngineService {
     readonly history = signal<string[]>([]);
 
     private i18n = inject(I18nService);
+    private gameRecordService = inject(GameRecordService);
+    private wakeLock = inject(WakeLockService);
+
 
     /** Start a new game with the given agents and roles */
     async startGame(agents: IAgent[], roleSelection: Role[], options?: GameOptions) {
@@ -60,7 +68,7 @@ export class GameEngineService {
         if (!config) throw new Error(`Unsupported player count: ${agents.length}`);
 
         // Shuffle roles
-        const shuffledRoles = [...roleSelection].sort(() => Math.random() - 0.5);
+        const shuffledRoles = this.shuffle(roleSelection);
 
         // Initialize player states
         const players: PlayerState[] = agents.map((agent, i) => ({
@@ -89,7 +97,7 @@ export class GameEngineService {
             events: [],
             isPaused: false,
             isThinking: false,
-            isUpdatingNotes: false,
+            updatingNotePlayerIds: [],
             signaledThisRoundIds: [],
             perspectiveId: agents.find(a => a.modelName === 'Human')?.id || null
         });
@@ -106,9 +114,13 @@ export class GameEngineService {
         // Force reset loop flag if it was stuck
         this._isRunningLoop = false;
 
+        // Start wake lock to prevent system sleep
+        this.wakeLock.start();
+
         // Start the game loop in the background to avoid blocking the UI transition
         setTimeout(() => this.runGameLoop(currentInstance), 0);
     }
+
 
     private async runGameLoop(instanceId: number) {
         if (this._isRunningLoop) {
@@ -244,14 +256,20 @@ export class GameEngineService {
                         this.changePhase(GamePhase.GameOver);
                         break;
 
-                    case GamePhase.GameOver:
-                        this.log('Game Over.');
-                        return;
-
                     default:
                         console.warn('Unhandled game phase:', state.phase);
                         return;
                 }
+            }
+
+            // Loop terminated - Check if it was Game Over
+            const finalState = this._state();
+            if (finalState.phase === GamePhase.GameOver) {
+                this.log('Game Over.');
+                if (finalState.winner !== null) {
+                    this.autoSaveRecord(finalState.winner);
+                }
+                this.wakeLock.stop();
             }
         } catch (e) {
             console.error('[GameLoop] Fatal Error:', e);
@@ -351,6 +369,7 @@ export class GameEngineService {
                     return { ...s, events: newEvents };
                 });
 
+                const costBefore = player.agent.getTokenUsage?.()?.totalCost ?? 0;
                 const result = await player.agent.speak({
                     ...this.buildBaseContext(player.agent.id),
                     phase: 'OPENING',
@@ -372,8 +391,12 @@ export class GameEngineService {
                             else if (field === 'self_check') ev.self_check = (ev.self_check || '') + chunk;
 
                             if (metadata) {
+                                console.log('[game-engine] OPENING streaming metadata received:', metadata);
                                 if (metadata.promptSpeed) ev.promptSpeed = metadata.promptSpeed;
                                 if (metadata.completionSpeed) ev.completionSpeed = metadata.completionSpeed;
+                                if (metadata.prompt) ev.promptTokens = metadata.prompt;
+                                if (metadata.candidates) ev.completionTokens = metadata.candidates;
+                                if (metadata.cached) ev.cachedTokens = metadata.cached;
                             }
                         }
                         return { ...s, events: newEvents };
@@ -402,6 +425,7 @@ export class GameEngineService {
                         ev.promptText = result.promptText;
                         ev.retryLogs = result.retryLogs;
                         ev.status = 'success';
+                        ev.cost = (player.agent.getTokenUsage?.()?.totalCost ?? 0) - costBefore;
                         this.processHiddenSignal(player.agent.id, result.action.pass_hidden_signal, ev);
                     }
                     return { ...s, events: newEvents, isThinking: false };
@@ -460,6 +484,7 @@ export class GameEngineService {
                 return { ...s, events: newEvents };
             });
 
+            const costBefore = leader.agent.getTokenUsage?.()?.totalCost ?? 0;
             const result = await leader.agent.proposeTeam({
                 ...this.buildBaseContext(leader.agent.id),
                 round: state.currentRound,
@@ -485,8 +510,12 @@ export class GameEngineService {
                         }
 
                         if (metadata) {
+                            console.log('[game-engine] PROPOSAL streaming metadata received:', metadata);
                             if (metadata.promptSpeed) ev.promptSpeed = metadata.promptSpeed;
                             if (metadata.completionSpeed) ev.completionSpeed = metadata.completionSpeed;
+                            if (metadata.prompt) ev.promptTokens = metadata.prompt;
+                            if (metadata.candidates) ev.completionTokens = metadata.candidates;
+                            if (metadata.cached) ev.cachedTokens = metadata.cached;
                         }
                     }
                     return { ...s, events: newEvents };
@@ -510,6 +539,7 @@ export class GameEngineService {
                     ev.promptText = result.promptText;
                     ev.retryLogs = result.retryLogs;
                     ev.status = 'success';
+                    ev.cost = (leader.agent.getTokenUsage?.()?.totalCost ?? 0) - costBefore;
                 }
                 return { ...s, proposedTeamIds: teamIds, events: newEvents, isThinking: false };
             });
@@ -709,6 +739,7 @@ export class GameEngineService {
                         return { ...s, events: newEvents };
                     });
 
+                    const costBefore = player.agent.getTokenUsage?.()?.totalCost ?? 0;
                     const result = await player.agent.speak({
                         ...this.buildBaseContext(player.agent.id),
                         phase,
@@ -725,7 +756,7 @@ export class GameEngineService {
                             const ev = newEvents[eventIndex];
                             if (ev && (ev.type === 'DISCUSSION' || ev.type === 'GAME_DEBRIEF')) {
                                 ev.isThinking = false;
-                                if (chunk === '') { // handle reset command from agent
+                                if (chunk === '' && !metadata) { // handle reset command from agent
                                     if (field === 'speech') ev.message = '';
                                     else if (field === 'reasoning') ev.reasoning = '';
                                     else if (field === 'thought') ev.thought = '';
@@ -760,8 +791,12 @@ export class GameEngineService {
                                 }
 
                                 if (metadata) {
+                                    console.log('[game-engine] DISCUSSION streaming metadata received:', metadata);
                                     if (metadata.promptSpeed) ev.promptSpeed = metadata.promptSpeed;
                                     if (metadata.completionSpeed) ev.completionSpeed = metadata.completionSpeed;
+                                    if (metadata.prompt) ev.promptTokens = metadata.prompt;
+                                    if (metadata.candidates) ev.completionTokens = metadata.candidates;
+                                    if (metadata.cached) ev.cachedTokens = metadata.cached;
                                 }
                             }
                             return { ...s, events: newEvents };
@@ -786,6 +821,7 @@ export class GameEngineService {
                             ev.promptText = result.promptText;
                             ev.retryLogs = result.retryLogs;
                             ev.status = 'success';
+                            ev.cost = (player.agent.getTokenUsage?.()?.totalCost ?? 0) - costBefore;
                             this.processHiddenSignal(player.agent.id, result.action.pass_hidden_signal, ev);
                         }
                         return { ...s, events: newEvents, isThinking: false };
@@ -1156,6 +1192,7 @@ export class GameEngineService {
             const goodPlayerIds = state.players.filter(p => p.team === Team.Good).map(p => p.agent.id);
             this.log('Assassin is picking a target...');
 
+            const costBefore = assassinPlayer.agent.getTokenUsage?.()?.totalCost ?? 0;
             const result = await assassinPlayer.agent.assassinate({
                 ...this.buildBaseContext(assassinPlayer.agent.id),
                 goodPlayerIds,
@@ -1200,6 +1237,7 @@ export class GameEngineService {
                     ev.action_strategy = result.action_strategy;
                     ev.promptText = result.promptText;
                     ev.retryLogs = result.retryLogs;
+                    ev.cost = (assassinPlayer.agent.getTokenUsage?.()?.totalCost ?? 0) - costBefore;
                 }
                 return { ...s, events: newEvents, assassinTargetId: targetId, isMerlinKilled: isMerlinKilled, isThinking: false };
             });
@@ -1269,6 +1307,7 @@ export class GameEngineService {
                     return { ...s, events: newEvents };
                 });
 
+                const costBefore = player.agent.getTokenUsage?.()?.totalCost ?? 0;
                 const result = await player.agent.shareGameReflection({
                     round: state.currentRound,
                     winner: state.winner,
@@ -1320,6 +1359,7 @@ export class GameEngineService {
                         ev.promptText = result.promptText;
                         ev.retryLogs = result.retryLogs;
                         ev.status = 'success';
+                        ev.cost = (player.agent.getTokenUsage?.()?.totalCost ?? 0) - costBefore;
                     }
                     return { ...s, events: newEvents, isThinking: false };
                 });
@@ -1364,7 +1404,9 @@ export class GameEngineService {
             .filter(s => s !== '');
 
         try {
-            this.updateState({ isUpdatingNotes: true });
+            const pendingIds = state.players.map(p => p.agent.id);
+            this.updateState({ updatingNotePlayerIds: pendingIds });
+
             await Promise.all(state.players.map(async p => {
                 await p.agent.updateNote({
                     ...this.buildBaseContext(p.agent.id),
@@ -1372,6 +1414,10 @@ export class GameEngineService {
                     recentEvents,
                     personalNote: ''
                 });
+                this._state.update(s => ({
+                    ...s,
+                    updatingNotePlayerIds: (s.updatingNotePlayerIds || []).filter(id => id !== p.agent.id)
+                }));
             }));
         } catch (e) {
             // This is a non-critical failure, so we just log it and don't pause.
@@ -1383,7 +1429,7 @@ export class GameEngineService {
             // Optionally add a non-pausing error to the state
             this._state.update(s => ({ ...s, error: displayMessage }));
         } finally {
-            this.updateState({ isUpdatingNotes: false });
+            this.updateState({ updatingNotePlayerIds: [] });
         }
     }
 
@@ -1506,7 +1552,46 @@ export class GameEngineService {
                 reason: winner === Team.Good ? this.i18n.translate('engine.goodWins') : this.i18n.translate('engine.evilWins')
             });
         }
-        this.changePhase(GamePhase.GameOver, { winner });
+
+        // Only update record-keeping state, Phase transition is handled by the loop
+        this.updateState({ winner });
+    }
+
+
+    private autoSaveRecord(winner: Team) {
+        const state = this._state();
+        const players: GameRecordPlayer[] = state.players.map(p => ({
+            id: p.agent.id,
+            name: p.agent.name,
+            role: p.role,
+            team: p.team,
+            modelName: p.agent.modelName
+        }));
+
+        // All usage from events (single source of truth)
+        let promptTokens = 0, completionTokens = 0, cachedTokens = 0, totalCost = 0;
+        for (const e of state.events) {
+            promptTokens += e.promptTokens || 0;
+            completionTokens += e.completionTokens || 0;
+            cachedTokens += e.cachedTokens || 0;
+            totalCost += e.cost || 0;
+        }
+
+        const record: GameRecord = {
+            id: crypto.randomUUID(),
+            createdAt: Date.now(),
+            playerCount: players.length,
+            players,
+            winner: winner,
+            isMerlinKilled: state.isMerlinKilled,
+            events: state.events,
+            options: state.options,
+            tokenUsage: { promptTokens, completionTokens, cachedTokens, totalCost }
+        };
+
+        this.gameRecordService.save(record).catch(err =>
+            console.error('[GameEngine] Failed to auto-save game record:', err)
+        );
     }
 
     private handleAgentError(e: unknown, eventIndex: number) {
@@ -1555,12 +1640,13 @@ export class GameEngineService {
             ladyHolder: null,
             ladyHistory: [],
             events: [],
-            isUpdatingNotes: false,
+            updatingNotePlayerIds: [],
             signaledThisRoundIds: [],
         });
         this.history.set([]);
         this._gameInstanceId++; // Invalidate stale loops
         this._isRunningLoop = false;
+        this.wakeLock.stop();
     }
 
     resumeGame() {
@@ -1597,8 +1683,8 @@ export class GameEngineService {
 
         if (event.type === 'PHASE_CHANGE' || event.type === 'DISCUSSION' ||
             event.type === 'TEAM_PROPOSAL' || event.type === 'VOTE_RESULTS' || event.type === 'SYSTEM') {
-            if (event.round === undefined) event.round = state.currentRound;
-            if (event.failedVotes === undefined && 'failedVotes' in event) (event as any).failedVotes = currentFailedVotes;
+            if (event.round === undefined) (event as any).round = state.currentRound;
+            if ((event as any).failedVotes === undefined) (event as any).failedVotes = currentFailedVotes;
         }
 
         this._state.update(s => ({ ...s, events: [...(s.events || []), event] }));
@@ -1899,5 +1985,13 @@ export class GameEngineService {
         }
 
         return { role: 'UNKNOWN', team: 'UNKNOWN', isOriginal: false };
+    }
+    private shuffle<T>(array: T[]): T[] {
+        const shuffled = [...array];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
     }
 }

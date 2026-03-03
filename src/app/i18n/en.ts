@@ -85,7 +85,7 @@ export const en = {
         interruptBtn: 'Abort Game',
         resumeScroll: 'Resume Auto-scroll',
         copyLog: 'Copy Log',
-        updatingNotes: 'Everyone is updating their notes...'
+        updatingNotes: 'Everyone is updating their notes... waiting ({{names}})'
     },
     playerList: {
         title: 'Players',
@@ -293,6 +293,25 @@ export const en = {
         send: 'Send',
         pass: 'Pass',
         remainingRounds: 'Remaining rounds: {{count}}'
+    },
+    history: {
+        title: 'Game Records',
+        empty: 'No game records yet. Play a game to see it here!',
+        players: '{{count}} Players',
+        winner: 'Winner: {{team}}',
+        good: 'Good',
+        evil: 'Evil',
+        merlinKilled: 'Merlin Killed',
+        delete: 'Delete',
+        confirmDelete: 'Are you sure you want to delete this game record?',
+        backToGame: '← Back to Game',
+        backToHistory: '← Back to Records',
+        replayTitle: 'Game Replay',
+        playerRoles: 'Player Roles',
+        import: 'Import',
+        exportAll: 'Export All',
+        importSuccess: 'Successfully imported {{count}} record(s).',
+        importError: 'Failed to import. Please check the JSON file format.',
     },
     common: {
         fetch: 'Fetch'

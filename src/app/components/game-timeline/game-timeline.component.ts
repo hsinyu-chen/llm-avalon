@@ -32,7 +32,7 @@ export class GameTimelineComponent {
 
     showGodView = computed(() => this.isGodView() || !this.perspectiveId());
     isUpdatingNotes = this.gameEngine.isUpdatingNotes;
-    supportsSpeedMetrics = computed(() => this.llmRegistry.getCapabilities().supportsSpeedMetrics);
+    updatingNotePlayerNames = computed(() => this.gameEngine.updatingNotePlayerIds().map(id => this.getPlayerName(id)));
 
     getPlayerName(id: string): string {
         const p = this.gameEngine.state().players.find(p => p.agent.id === id);
@@ -60,10 +60,10 @@ export class GameTimelineComponent {
     }
 
     openReasoningDialog(reasoning?: string, thought?: string) {
-        let combined = '';
-        if (thought) combined += `${thought}`;
+        const text = thought?.trim();
+        if (!text) return;
 
-        this.selectedReasoningText.set(combined.trim() || null);
+        this.selectedReasoningText.set(text);
         this.reasoningDialog()?.nativeElement.showModal();
     }
 

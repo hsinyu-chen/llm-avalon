@@ -31,7 +31,7 @@ export class PredictionService {
         if (config.provider === 'gemini') {
             const provider = this.llmManager.getProvider('gemini');
             if (provider) {
-                const models = provider.getAvailableModels();
+                const models = provider.getAvailableModels(config.settings);
                 const selectedModel = models.find(m => m.id === config.settings.modelId);
                 if (selectedModel && selectedModel.getRates) {
                     return selectedModel.getRates(0);

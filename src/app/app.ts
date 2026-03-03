@@ -1,7 +1,6 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, computed } from '@angular/core';
+import { Router, RouterOutlet } from '@angular/router';
 import { GameEngineService } from './services/game-engine.service';
-import { GameSetupComponent } from './components/game-setup/game-setup.component';
-import { GameBoardComponent } from './components/game-board/game-board.component';
 import { LLMSettingsComponent } from './components/llm-settings/llm-settings.component';
 import { LLMProviderInitService } from './services/llm/llm-provider-init.service';
 import { I18nService } from './i18n/i18n.service';
@@ -11,7 +10,7 @@ import { FormsModule } from '@angular/forms';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [GameSetupComponent, GameBoardComponent, LLMSettingsComponent, TranslatePipe, FormsModule],
+  imports: [RouterOutlet, LLMSettingsComponent, TranslatePipe, FormsModule],
   template: `
     <div class="app-layout">
       <header>
@@ -30,19 +29,20 @@ import { FormsModule } from '@angular/forms';
                 🛑 {{ 'board.interruptBtn' | translate }}
               </button>
             }
-            <button class="settings-trigger" (click)="showSettings.set(true)" title="LLM Settings">
-              ⚙️ Config
+            <button class="history-btn" (click)="goToHistory()" title="Game Records">
+              📜 {{ 'history.title' | translate }}
             </button>
+            @if (!isInGame()) {
+              <button class="settings-trigger" (click)="showSettings.set(true)" title="LLM Settings">
+                ⚙️ Config
+              </button>
+            }
           </div>
         </div>
       </header>
       
       <main>
-        @if (phase() === 'SETUP') {
-          <app-game-setup></app-game-setup>
-        } @else {
-          <app-game-board></app-game-board>
-        }
+        <router-outlet></router-outlet>
       </main>
 
       @if (showSettings()) {
@@ -105,6 +105,17 @@ import { FormsModule } from '@angular/forms';
       transition: all 0.2s;
       &:hover { background: #da3633; color: white; }
     }
+    .history-btn {
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: all 0.2s;
+      &:hover { background: #30363d; border-color: #8b949e; }
+    }
     .settings-trigger {
       background: #21262d;
       border: 1px solid #30363d;
@@ -128,9 +139,11 @@ import { FormsModule } from '@angular/forms';
 export class AppComponent {
   private engine = inject(GameEngineService);
   private llmInit = inject(LLMProviderInitService);
+  private router = inject(Router);
 
   phase = this.engine.phase;
   showSettings = signal(false);
+  isInGame = computed(() => this.phase() !== 'SETUP' && this.phase() !== 'GAME_OVER');
 
   public i18n = inject(I18nService);
 
@@ -142,5 +155,9 @@ export class AppComponent {
     if (confirm('Are you sure you want to interrupt and exit the current game?')) {
       this.engine.reset();
     }
+  }
+
+  goToHistory() {
+    this.router.navigate(['/history']);
   }
 }
