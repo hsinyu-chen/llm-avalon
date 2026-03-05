@@ -1,11 +1,18 @@
 <div class="scoreboard">
-    @for (m of missionTrack(); track $index) {
-    <div class="mission-circle" [ngClass]="{
-    'success': m === 'SUCCESS',
-    'fail': m === 'FAIL',
-    'current': currentRound() === $index + 1
-    }">
-        R{{$index + 1}}
+    @for (req of missionRequirements(); track $index) {
+    <div class="mission-wrapper">
+        <div class="mission-circle" [ngClass]="{
+            'success': req.status === 'SUCCESS',
+            'fail': req.status === 'FAIL',
+            'current': currentRound() === $index + 1
+        }">
+            R{{$index + 1}}
+        </div>
+        <div class="mission-fails">
+            @for (i of [].constructor(req.failsRequired); track $index) {
+            <span class="fail-dot" [class.happened]="req.actualFails > $index"></span>
+            }
+        </div>
     </div>
     }
 </div>

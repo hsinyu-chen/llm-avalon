@@ -1,5 +1,5 @@
 import { GameRecord } from '../models/game-record';
-import { GameState, PlayerState } from '../models/game-state';
+import { GameState, PlayerState, MissionRecord } from '../models/game-state';
 import { GamePhase } from '../models/game-event';
 import { Team, Role } from '../models/role';
 import { IAgent, TokenUsage, NightPhaseInfo, TeamProposalContext, VoteContext, MissionContext, AssassinContext, SpeakContext, GameReflectionContext } from '../models/agent.interface';
@@ -38,13 +38,32 @@ export function recordToGameState(record: GameRecord): GameState {
         team: p.team as Team
     }));
 
+    // Extract missions from events
+    const missions: MissionRecord[] = [];
+    record.events.forEach(e => {
+        if (e.type === 'MISSION_OUTCOME') {
+            missions.push({
+                round: e.round,
+                leaderId: '', // Not strictly needed for replay scoreboard
+                teamIds: [],  // Not stored in MISSION_OUTCOME event directly
+                votes: {},    // Not stored in MISSION_OUTCOME event directly
+                results: [],  // Not stored in MISSION_OUTCOME event directly
+                succeeded: e.succeeded,
+                failsCount: e.failsCount,
+            });
+        }
+    });
+
+    // Sort missions by round to be safe
+    missions.sort((a, b) => a.round - b.round);
+
     return {
         phase: GamePhase.GameOver,
         players,
         currentLeaderIndex: 0, // Not strictly needed for replay but required by interface
         currentRound: record.events.filter(e => e.type === 'ROUND_START').length || 1,
         consecutiveFailedVotes: 0,
-        missions: [], // Replay usually just needs events for timeline
+        missions,
         proposedTeamIds: [],
         discussion: null,
         winner: record.winner as Team,

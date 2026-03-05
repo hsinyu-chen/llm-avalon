@@ -18,7 +18,8 @@
                 </div>
 
                 <!-- Scoreboard -->
-                <app-scoreboard [missions]="state().missions" [currentRound]="currentRound()"></app-scoreboard>
+                <app-scoreboard [playerCount]="state().players.length" [missions]="state().missions"
+                    [currentRound]="currentRound()"></app-scoreboard>
 
                 <!-- Status Panel -->
                 <app-status-panel [round]="state().currentRound" [failedVotes]="state().consecutiveFailedVotes"

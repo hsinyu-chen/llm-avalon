@@ -2,12 +2,19 @@
     display: flex;
     justify-content: center;
     gap: 10px;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
 
     @media (min-width: 1024px) {
         justify-content: flex-start;
         flex-wrap: wrap;
     }
+}
+
+.mission-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
 }
 
 .mission-circle {
@@ -22,6 +29,7 @@
     font-weight: bold;
     font-size: 0.9em;
     color: #c9d1d9;
+    transition: all 0.3s ease;
 }
 
 .mission-circle.success {
@@ -37,4 +45,24 @@
 .mission-circle.current {
     border-color: #d29922;
     box-shadow: 0 0 10px #d29922;
+}
+
+.mission-fails {
+    display: flex;
+    gap: 4px;
+    height: 8px;
+    justify-content: center;
+}
+
+.fail-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #30363d;
+    box-shadow: inset 0 0 2px rgba(0,0,0,0.5);
+}
+
+.fail-dot.happened {
+    background: #da3633;
+    box-shadow: 0 0 5px #f85149;
 }
