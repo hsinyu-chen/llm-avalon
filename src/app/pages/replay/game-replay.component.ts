@@ -58,7 +58,7 @@ export class GameReplayComponent {
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-            const data: GameRecord = await response.json();
+            const data: GameRecord = (await response.json())[0];
             this.record.set(data);
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Unknown error';
