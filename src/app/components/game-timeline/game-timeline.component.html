@@ -288,7 +288,6 @@
 
                         <ng-container
                             *ngTemplateOutlet="agentMetrics; context: { event: event, playerName: event.playerName, showThinking: true }"></ng-container>
-                        {{ 'board.assassinateBtn' | translate }}:
                         @if (event.error) {
                         <div class="error-message">{{ event.error }}</div>
                         }
@@ -331,9 +330,17 @@
                 }
 
                 @case ('SYSTEM') {
-                <div class="system-msg">
+                <div class="system-msg" [class.error]="event.status === 'error'">
                     <span class="sys-icon">{{ event.icon || 'ℹ️' }}</span>
-                    <span>{{ event.message }}</span>
+                    <div class="sys-content">
+                        <span>{{ event.message }}</span>
+                        @if (event.error) {
+                        <div class="error-message">{{ event.error }}</div>
+                        }
+                    </div>
+                    @if (event.status === 'error') {
+                    <button class="retry-btn" (click)="onRetry(event)">Retry</button>
+                    }
                 </div>
                 }
 

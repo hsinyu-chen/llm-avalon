@@ -28,8 +28,9 @@
                 @if (state().phase === 'DISCUSSION' || state().phase === 'MISSION_DEBRIEF') {
                 <div class="action-panel">
                     @if (state().discussion) {
+                    <div>discussion info</div>
                     <div class="discussion-info">
-                        Round: {{state().discussion?.roundNumber}} / {{state().discussion?.maxRounds}}
+                        Turn: {{state().discussion?.roundNumber}} / {{state().discussion?.maxRounds}}
                         (Passed: {{state().discussion?.passedAgentIds?.size}} / {{state().players.length}})
                     </div>
                     }

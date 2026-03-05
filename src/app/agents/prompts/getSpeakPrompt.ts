@@ -128,15 +128,16 @@ ${directive}
 
     const rotationLine = `Leader Rotation for this Round: ${leaderRotationStr}`;
 
-    const repetitionForceField = (context.discussionRound ?? 1) > 1 && isPreVote
+    const isAssassinDiscussion = context.phase === 'ASSASSINATION_DISCUSSION';
+    const repetitionForceField = (context.discussionRound ?? 1) > 1 && (isPreVote || isAssassinDiscussion)
         ? `
 🚨 **ANTI-REPETITION FORCE FIELD (Turn ${context.discussionRound})**: 
 1. **🛑 GREETING BAN**: You have already introduced yourself. DO NOT say "Hello", "I am pX", or any variant. 
 2. **DUP-FILTER**: The Game Host AUTOMATICALLY DISCARDS near-identical messages. Your current speech MUST be >50% different from your last message. 
-3. **MANDATORY PIVOT**: If you've already expressed your opinion on the current team, you MUST now either:
-   - Analyze a DIFFERENT player's behavior.
-   - Comment on the Leader Rotation (${leaderRotationStr}).
-   - Set "readyToVote": true and produce a 1-sentence "I have nothing new to add."`
+3. **MANDATORY PIVOT**: If you've already expressed your opinion${isPreVote ? ' on the current team' : ''}, you MUST now either:
+   - Analyze a DIFFERENT player's behavior.${isPreVote ? `
+   - Comment on the Leader Rotation (${leaderRotationStr}).` : ''}
+   - Set "readyToVote": true and produce a 1-sentence "I have nothing new to add." (This will yield your speaking turn.)`
         : '';
 
     const hammerWarning = (context.consecutiveFailedVotes === 4 && isPreVote)
@@ -148,7 +149,9 @@ This is the LAST possible vote for this round. If this team is rejected, **EVIL 
 
     const readyToVoteHint = isPreVote
         ? `10. ⚠️ [FORCED EXIT]: If you have nothing else to say and are ready to vote, you MUST set "readyToVote": true. This is standard protocol to prevent game stagnancy.`
-        : '';
+        : isAssassinDiscussion
+            ? `10. ⚠️ [YIELD TURN]: If you have finished your statement, set "readyToVote": true to yield your speaking turn. This does NOT trigger a vote — it simply ends your turn in the assassination discussion.`
+            : `⚠️ "readyToVote" MUST be set to false in this phase. It is not used during opening or game review.`;
 
     const outputLanguage = i18n.translate('setup.languageName');
 
@@ -180,7 +183,7 @@ This is the LAST possible vote for this round. If this team is rejected, **EVIL 
         `- **Signal Type**: \`wink\` (positive/trust/alliance), \`frown\` (negative/doubt/warning), or \`none\`.`,
         `- **Detection Risk**: 20% chance that a player sitting NEXT TO your target will intercept the signal and expose your suspicious behavior!`,
         `- **Receiver Success**: 80% chance the target actually notices it.`,
-        `- **Instructions**: Do NOT just default to \`none\`! Actively evaluate the game state. If a hidden signal can manipulate others or advance your faction's strategy, take the calculated risk!`,
+        `- **Instructions**: Actively evaluate the game state. If a hidden signal can manipulate others or advance your faction's strategy, take the calculated risk!`,
         ``,
         `[INTERNAL THOUGHT PROCESS - STRICTLY PRIVATE]`,
         `The 'self_check','reasoning','situation_assessment' and 'action_strategy' fields are your PRIVATE, HONEST internal thoughts. NO ONE ELSE will see them.`,

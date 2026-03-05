@@ -7,5 +7,6 @@ export function getOutputFormatPrompt(langName: string): string {
   - "reasoning": Your immediate chain-of-thought for the current action.
   - "situation_assessment": A summary of suspicious behaviors and player alignments from your perspective. (⚠️ Strictly prohibited to record game rules, faction counts, or scores here. Only record your subjective analysis of 'other players')
   - "action_strategy": Your planned approach for the next few turns based on your assessment.
-- ⚠️ NEVER copy-paste your Private Note into Public Chat. Your Note contains SECRET INTEL that will get you killed if exposed. Translate your knowledge into "guesses" suitable for a normal player.`;
+- ⚠️ NEVER copy-paste your Private Note into Public Chat. Your Note contains SECRET INTEL that will get you killed if exposed. Translate your knowledge into "guesses" suitable for a normal player.
+- ⚠️ THINKING EFFICIENCY: When reasoning internally in <think></think>, do NOT restate, summarize, or recite the game rules, role descriptions, faction strategies, or behavioral constraints. You already know them. Jump straight into analyzing the CURRENT game state — focus on player behaviors, voting patterns, mission outcomes, and your decision. Restating rules wastes time and adds no value.`;
 }

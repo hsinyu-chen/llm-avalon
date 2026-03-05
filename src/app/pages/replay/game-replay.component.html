@@ -9,6 +9,8 @@
 
     @if (loading()) {
     <div class="loading">Loading...</div>
+    } @else if (loadError(); as error) {
+    <div class="not-found">{{ error }}</div>
     } @else if (!record()) {
     <div class="not-found">Record not found.</div>
     } @else {

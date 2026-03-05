@@ -7,5 +7,6 @@ export const routes: Routes = [
     { path: '', component: GamePageComponent },
     { path: 'history', component: GameHistoryComponent },
     { path: 'history/:id', component: GameReplayComponent },
+    { path: 'replay', component: GameReplayComponent },
     { path: '**', redirectTo: '' }
 ];

@@ -675,6 +675,7 @@ export class GameEngineService {
                 // --- Idempotency and Error Handling ---
                 let eventIndex = this._state().events.findIndex(e =>
                     e.type === 'DISCUSSION' &&
+                    e.phase === phase &&
                     e.round === state.currentRound &&
                     e.failedVotes === state.consecutiveFailedVotes &&
                     e.discussionRound === roundNumber &&
@@ -1440,6 +1441,17 @@ export class GameEngineService {
         const state = this._state();
         this.log('Agents are updating their notes...');
 
+        // Resume check
+        const existingEvent = state.events.find(e =>
+            e.type === 'SYSTEM' &&
+            e.subType === 'AGENT_NOTE_UPDATE' &&
+            e.round === state.currentRound
+        );
+
+        if (existingEvent && existingEvent.status === 'success') {
+            return;
+        }
+
         const recentEvents = (state.events || [])
             .filter(e => 'round' in e && e.round === state.currentRound)
             .map(e => {
@@ -1464,13 +1476,8 @@ export class GameEngineService {
             })
             .filter(s => s !== '');
 
-        try {
-            const pendingIds = state.players.map(p => p.agent.id);
-            this.updateState({ updatingNotePlayerIds: pendingIds });
-
-            const costsBefore = Object.fromEntries(state.players.map(p => [p.agent.id, p.agent.getTokenUsage?.()?.totalCost ?? 0]));
-            const playerTokens: Record<string, { prompt: number, completion: number, cached: number }> = {};
-            const eventIndex = this._state().events.length;
+        const eventIndex = existingEvent ? this._state().events.indexOf(existingEvent) : this._state().events.length;
+        if (!existingEvent) {
             this.addEvent({
                 type: 'SYSTEM',
                 subType: 'AGENT_NOTE_UPDATE',
@@ -1479,6 +1486,21 @@ export class GameEngineService {
                 icon: '📝',
                 status: 'pending'
             });
+        } else {
+            // Update existing event to pending
+            this._state.update(s => {
+                const newEvents = [...s.events];
+                newEvents[eventIndex] = { ...newEvents[eventIndex], status: 'pending', isThinking: true, error: undefined };
+                return { ...s, events: newEvents };
+            });
+        }
+
+        try {
+            const pendingIds = state.players.map(p => p.agent.id);
+            this.updateState({ updatingNotePlayerIds: pendingIds });
+
+            const costsBefore = Object.fromEntries(state.players.map(p => [p.agent.id, p.agent.getTokenUsage?.()?.totalCost ?? 0]));
+            const playerTokens: Record<string, { prompt: number, completion: number, cached: number }> = {};
 
             await Promise.all(state.players.map(async p => {
                 await p.agent.updateNote({
@@ -1510,7 +1532,6 @@ export class GameEngineService {
                     const ev = newEvents[eventIndex];
                     if (ev && ev.type === 'SYSTEM' && ev.subType === 'AGENT_NOTE_UPDATE') {
                         // Keep status pending until all players are done.
-                        // Actually, just let finally block set it to success once.
                     }
                     return {
                         ...s,
@@ -1531,14 +1552,9 @@ export class GameEngineService {
                 return { ...s, events: newEvents };
             });
         } catch (e) {
-            // This is a non-critical failure, so we just log it and don't pause.
-            const error = e as Error;
-            console.error('[GameEngine] Non-fatal error during agent note update:', error);
-            const displayMessage = (e instanceof AgentFatalError)
-                ? `Agent Note-Update Error: ${e.agentName}. ${e.lastErrorMessage}`
-                : error.message;
-            // Optionally add a non-pausing error to the state
-            this._state.update(s => ({ ...s, error: displayMessage }));
+            console.error('[GameEngine] Error during agent note update:', e);
+            this.handleAgentError(e, eventIndex);
+            throw e; // Important: throw to stop runGameLoop and wait for retry
         } finally {
             this.updateState({ updatingNotePlayerIds: [] });
         }

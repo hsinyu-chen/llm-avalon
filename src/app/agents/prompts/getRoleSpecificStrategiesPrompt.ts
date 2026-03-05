@@ -80,9 +80,8 @@ export function getRoleSpecificStrategiesPrompt(uniqueRoles: Role[]): string | n
 
     if (roleStrategies.length > 0) {
         return `## Role-Specific Strategies
-⚠️ CRITICAL: The strategies below are for specific roles. You MUST ONLY execute the strategy of YOUR ACTUAL ROLE (provided in your private data). The other strategies are provided solely so you can understand and deduce how other players might act. DO NOT act like a special role (e.g., Merlin) if you are just a Loyal Servant!
+⚠️ IMPORTANT: Focus on YOUR ACTUAL ROLE's strategy as a reference, and use the other roles' strategies to understand and predict how opponents might behave. These strategies are guidelines — you are encouraged to adapt, improvise, and develop your own tactics based on the game state. Do NOT blindly act like a special role (e.g., Merlin) if you are a Loyal Servant.
 ${roleStrategies.join('\n\n')}
-* The strategies above are merely suggestions; you can still implement them according to your own ideas.
 `;
     }
 

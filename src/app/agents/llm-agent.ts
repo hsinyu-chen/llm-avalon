@@ -619,7 +619,7 @@ export class LLMAgent implements IAgent {
             `- **Roles**: ${rolesListText}`,
             `- **Players**: ${playerRoster}`,
             `- **Score**: Good ${goodWins} vs Evil ${evilWins}`,
-            `- **Progress**: Round ${ctx.round} | Failed votes: ${ctx.consecutiveFailedVotes}/5`,
+            `- **Progress**: Current Round ${ctx.round} | Failed votes: ${ctx.consecutiveFailedVotes}/5`,
             ...(matchPointWarning ? [`- ⚠️ **Warning**: ${matchPointWarning}`] : []),
             ...(twoFailsWarning ? [`- ⚠️ **Warning**: ${twoFailsWarning}`] : []),
             '',
@@ -629,7 +629,7 @@ export class LLMAgent implements IAgent {
             `#### Voting History`,
             this.formatVotingHistory(ctx.allEvents, ctx.playerNames),
             '',
-            `#### Events This Round`,
+            `#### Events This Round (Current Round: ${ctx.round})`,
             roundEventsText
         ].join('\n');
 

@@ -77,7 +77,7 @@ const ACTION_SCHEMAS: Record<AgentActionName, (langName: string) => any> = {
                     },
                     readyToVote: {
                         type: 'boolean',
-                        description: 'Set to true if you are ready to conclude discussion and proceed to voting.'
+                        description: 'Phase-dependent flag: In OPENING / MISSION_DEBRIEF — always set to false (not used). In DISCUSSION — set to true to conclude discussion and proceed to voting. In ASSASSINATION_DISCUSSION — set to true to yield your speaking turn (end your turn), NOT to trigger a vote.'
                     }
                 },
                 required: ['speech', 'readyToVote', 'pass_hidden_signal']
