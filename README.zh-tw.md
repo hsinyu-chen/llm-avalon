@@ -57,7 +57,7 @@
 |-------|---------|-------------|----------|--------|
 | Gemini 3 Flash Preview | 7 | - | Hosted API | [▶ 觀看重播](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fzh%2Fgemini-3-flash-preview.json) |
 | Gemini 2.5 Flash Lite | 7 | - | Hosted API | [▶ 觀看重播](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2Fgemini-2.5-flash-lite.json) |
-| Gemma-4-31B-it-UD (Q4_K_XL, Local,Thinking) | 7 | PP: ~229 t/s, OUT: ~8.6 t/s | Local | [▶ 觀看重播](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2Fgemma-4-31B-it-UD-Q4_K_XL_Thinking.json) |
+| Gemma-4-31B-it-UD (Q4_K_XL, Local,Thinking) | 7 | PP: ~229 t/s, OUT: ~8.6 t/s | AMD Strix Halo 395+ 128G | [▶ 觀看重播](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2Fgemma-4-31B-it-UD-Q4_K_XL_Thinking.json) |
 | Qwen3.5-35B-A3B (Q8_K_XL, Local) | 7 | PP: ~940 t/s, OUT: ~29 t/s | AMD Strix Halo 395+ 128G | [▶ 觀看重播](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fzh%2FQwen3.5-35B-A3B-UD-Q8_K_XL.json) |
 
 ### English
