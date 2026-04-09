@@ -259,6 +259,9 @@
                             <span class="team-member-colored" [class.team-good]="m.team === 'GOOD'"
                                 [class.team-evil]="m.team === 'EVIL'">
                                 {{ m.name }} <span class="member-role">({{ m.role | translate }})</span>
+                                @if (m.playedSuccess !== undefined) {
+                                <span class="played-card">[{{ m.playedSuccess ? ('timeline.success' | translate) : ('timeline.fail' | translate) }}]</span>
+                                }
                             </span>
                             }
                             } @else {

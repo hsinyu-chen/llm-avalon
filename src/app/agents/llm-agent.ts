@@ -233,16 +233,13 @@ export class LLMAgent implements IAgent {
             const autoResult: MissionAction = {
                 action: { playedMissionResult: true },
                 reasoning: "As a Good player, I have no choice but to play Success on missions. This is an automatic action.",
-                situation_assessment: "I am a Good player on a mission.",
-                action_strategy: "Play Success.",
-                self_check: "I am Good, so I must play Success."
+                situation_assessment: "",
+                action_strategy: "",
+                self_check: ""
             };
 
             if (onChunk) {
                 onChunk(autoResult.reasoning, 'reasoning');
-                onChunk(autoResult.situation_assessment, 'situation_assessment');
-                onChunk(autoResult.action_strategy, 'action_strategy');
-                onChunk(autoResult.self_check, 'self_check');
             }
 
             const resStr = this.i18n.translate('board.success');
@@ -581,7 +578,8 @@ export class LLMAgent implements IAgent {
                         privateNote = `\n  > *(Private Note: you played **Success** in the mission)*`;
                     } else {
                         // For evil, show the actual mission result
-                        const resultText = m.succeeded ? 'Success' : 'Fail';
+                        const playedSuccess = m.agentPlays && m.agentPlays[this.id] !== undefined ? m.agentPlays[this.id] : m.succeeded;
+                        const resultText = playedSuccess ? 'Success' : 'Fail';
                         privateNote = `\n  > *(Private Note: you played **${resultText}** in the mission)*`;
                     }
                 }

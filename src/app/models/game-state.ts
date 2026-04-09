@@ -21,6 +21,7 @@ export interface MissionRecord {
     teamIds: string[];
     votes: Record<string, boolean>; // playerId -> approve
     results: boolean[];             // the actual cards played (anonymized)
+    agentPlays?: Record<string, boolean>; // playerId -> playedResult (true for success, false for fail)
     succeeded: boolean;
     failsCount: number;
 }

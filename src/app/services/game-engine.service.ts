@@ -1107,6 +1107,7 @@ export class GameEngineService {
                 teamIds: [...teamIds],
                 votes: {},
                 results: shuffledResults,
+                agentPlays: Object.fromEntries(onMission.map((p, idx) => [p.agent.id, finalResults[idx]])),
                 succeeded,
                 failsCount: fails
             };
@@ -1115,10 +1116,11 @@ export class GameEngineService {
                 const newEvents = [...s.events];
                 const ev = newEvents[eventIndex] as any;
                 if (ev) {
-                    ev.teamMembers = onMission.map(p => ({
+                    ev.teamMembers = onMission.map((p, idx) => ({
                         name: p.agent.name,
                         role: this.i18n.translate('roles.' + p.role),
-                        team: ROLE_META[p.role].team
+                        team: ROLE_META[p.role].team,
+                        playedSuccess: finalResults[idx]
                     }));
                     ev.failsCount = fails;
                     ev.succeeded = succeeded;
