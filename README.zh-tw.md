@@ -88,6 +88,187 @@
     ```
 
 
+## 系統架構與介面
+
+專案採用嚴謹的 TypeScript 介面 (Interfaces) 將遊戲拆分為三個主要邏輯層：**遊戲核心狀態**、**代理人協定與行為** 以及 **LLM 服務層**。這樣的結構設計確保了遊戲規則、AI 互動和底層語言模型 API 彼此解耦。
+
+```text
+src/app/
+├── models/                             # 領域模型與資料結構核心
+│   │
+│   ├── game-config.ts                  # [環境設定] 包含單局與系統配置
+│   │   └── interface: GameConfig
+│   │
+│   ├── game-state.ts                   # [核心狀態] 維護推進邏輯與玩家當局進度
+│   │   └── interfaces: GameState, PlayerState, GameOptions...
+│   │
+│   ├── game-event.ts                   # [事件總線] 驅動 UI 與時間軸的事件記錄
+│   │   └── interface: BaseGameEvent
+│   │
+│   ├── game-record.ts                  # [戰報結算] 遊戲結束後用於封存與統計
+│   │   └── interfaces: GameRecord, GameRecordPlayer, GameRecordTokenUsage
+│   │
+│   ├── role.ts                         # [身分陣營] 定義角色卡、陣營與能力屬性
+│   │   └── interface: RoleMeta
+│   │
+│   └── agent.interface.ts              # [AI代理協定] LLM 玩家的互動合約、思考鏈(CoT)與行動格式
+│       ├── 代理人實體: IAgent
+│       ├── 階段脈絡(Context): BaseGameContext, VoteContext, SpeakContext... 等
+│       └── 行動決策(Action): ProposeTeamAction, SpeechAct, VoteAction... 等
+│
+└── services/
+    └── llm/
+        └── llm-provider.ts             # [LLM 抽象層] 各家模型 API 的共同開發介接標準
+            ├── 服務供應商: LLMProvider, LLMProviderCapabilities...
+            ├── 模型與計費: LLMModelDefinition, LLMPricingRates...
+            └── 串接資料流: LLMContent, LLMPart, LLMStreamChunk
+```
+
+### 1. 遊戲核心狀態 (Core Game State)
+這層屬於完全與 AI 無關的純邏輯領域，確保遊戲規則與環境的絕對正確 (Ground Truth)。
+* **設定與組態 (`game-config.ts`, `game-state.ts`)**: 定義系統整體參數及當局特定規則擴充。
+* **狀態與推進 (`game-state.ts`, `game-event.ts`)**: `GameState` 狀態機管理遊戲推進，並透過 `BaseGameEvent` 發布歷史事件供時間軸與 UI 呈現。
+* **戰報結算 (`game-record.ts`)**: 遊玩結束後統整所有決策與 Token 消耗以供重播儲存。
+
+### 2. 代理人協定與行為 (Agent Protocols & Actions)
+作為遊戲核心與 LLM 之間的「外交部」，強制規定了 AI 必須遵守的上下文輸入與決策輸出限制 (`agent.interface.ts`)。
+* **代理人核心實體化 (`IAgent`)**: AI 角色必須實作的非同步方法（如 `onNightPhase`、`vote`、`speak`）。
+* **情境脈絡注入 (Contexts)**: 依賴 `BaseGameContext`、`VoteContext` 等介面動態限制 AI 所能查閱的情報界線，避免偷看。
+* **決策與行為約束 (Actions)**: 透過強制規範 `self_check`、`situation_assessment` 以及最終的 `action` 載體，令所有模型決策過程皆內含清晰的「思維鏈」(Chain-of-Thought)。
+
+### 3. LLM 服務抽象層 (LLM Provider System)
+隱藏底層 API 的複雜性，提供標準化接入各家大語言模型的界面 (`llm-provider.ts`)。
+* **供應商與模型介定**: 透過 `LLMProvider` 定義介接合約，無論實體是 OpenAI 還是 Gemini。
+* **資料拋轉格式**: 使用 `LLMContent` 與 `LLMPart` 統整對話紀錄結構。
+
+### 遊戲主循環狀態機 (Game Loop State Machine)
+
+整場遊戲由 `GameEngineService.runGameLoop()` 驅動——一個超過 2000 行的單檔狀態機 (`game-engine.service.ts`)。階段流轉如下：
+
+```mermaid
+stateDiagram-v2
+    [*] --> NIGHT: startGame()
+    NIGHT --> OPENING: 角色情報揭示完成
+    OPENING --> TeamProposal: 自我介紹完成
+
+    state "回合循環 (R1-R5)" as RoundLoop {
+        TeamProposal --> Discussion: 隊長提出組隊
+        Discussion --> Vote: 討論結束
+        Vote --> TeamProposal: 否決\n(< 5 次, 換隊長)
+        Vote --> Mission: 通過
+        Mission --> MissionDebrief: 遊戲繼續
+        MissionDebrief --> TeamProposal: 下一回合
+    }
+
+    Vote --> GameDebrief: 第 5 次連續否決\n(邪惡獲勝)
+    Mission --> AssassinationDiscussion: 正義方達成\n3 次勝利
+    Mission --> GameDebrief: 邪惡方達成\n3 次勝利
+    AssassinationDiscussion --> Assassination
+    Assassination --> GameDebrief
+    GameDebrief --> GAME_OVER
+    GAME_OVER --> [*]
+```
+
+### 代理人與提示詞工程 (Agent & Prompt Architecture)
+
+`agents/` 目錄是 LLM 行為調教的核心。`LLMAgent`（`llm-agent.ts`, 57KB）實作了 `IAgent` 介面，負責提示詞組裝、串流與重試邏輯。
+
+```text
+src/app/agents/
+├── llm-agent.ts               # IAgent 的 LLM 實作
+│   ├── buildSystemInstruction()  # 組裝永久系統提示（遊戲規則與策略指南）
+│   ├── buildPrompt()             # 組裝每次行動的動態提示（身份 + 情報 + 筆記）
+│   └── queryLLMWithValidation()  # append-only 多輪重試 + JSON 串流解析
+│
+├── prompts/                   # 23 個模組化提示詞模板
+│   ├── schemas.ts             # ★ JSON Schema 集中管理（確保結構化輸出一致性）
+│   ├── getSpeakPrompt.ts      #   討論階段指示（最大檔案，15KB）
+│   ├── getRoleSpecificStrategiesPrompt.ts  # 各角色策略指引
+│   ├── getVotePrompt.ts / getExecuteMissionPrompt.ts / ...
+│   └── ... (其餘 19 個模組化提示詞檔案)
+│
+├── human-agent.ts             # 人類玩家 Agent（瀏覽器互動）
+└── random-agent.ts            # 隨機 Agent（測試用）
+```
+
+#### 提示詞組裝流程 (Prompt Assembly Pipeline)
+
+每次 LLM 呼叫遵循雙層結構：
+
+**系統指令** (每局建構一次，`buildSystemInstruction()`)：
+> §1 遊戲總覽 → §2 遊戲規則 → §3 角色能力 → §4 擴充規則 → §5 關鍵行為準則 → §6 陣營策略 → §7 角色專屬策略 → §8 階段角色提示 → §9 討論戰術 → §10 溝通管道 → §11 輸出格式
+
+**使用者提示** (每次行動動態組裝，`buildPrompt()`)：
+> `[PRIVATE DATA - IDENTITY]` → `[PRIVATE DATA - SECRET INTEL]` → `[PRIVATE DATA - YOUR NOTE]` → `[PRIVATE DATA - LAST ANALYSIS]` → `[PUBLIC DATA - COMMON KNOWLEDGE]` → `[CURRENT ACTION INSTRUCTIONS + JSON Schema]`
+
+> **設計說明**：系統指令刻意不包含角色特定身分資訊，以最大化 Provider 端 KV Cache 在同局所有 Agent 間的共用。角色身分在每次行動的使用者提示中動態注入。
+
+### 完整目錄結構 (Full Directory Structure)
+
+```text
+src/app/
+├── models/                     # 領域模型與資料結構（上方已記載）
+├── agents/                     # ★ Agent 實作與提示詞工程
+│   ├── llm-agent.ts           #   LLM Agent 核心（提示詞組裝 + 重試邏輯）
+│   ├── human-agent.ts         #   人類玩家
+│   ├── random-agent.ts        #   隨機 Agent（測試用）
+│   └── prompts/               #   23 個模組化提示詞模板 + schemas
+│
+├── services/
+│   ├── game-engine.service.ts         # ★ 遊戲引擎（狀態機 + 主循環，105KB）
+│   ├── game-record.service.ts         #   戰報儲存（IndexedDB）
+│   ├── prediction.service.ts          #   預測功能
+│   ├── human-interaction.service.ts   #   人機互動橋接
+│   ├── wake-lock.service.ts           #   防止遊戲中螢幕關閉
+│   └── llm/                           #   LLM 抽象層（上方已記載）
+│       ├── gemini.service.ts          #     Gemini 實作
+│       ├── openai.service.ts          #     OpenAI 實作
+│       ├── llama-v2.service.ts        #     llama.cpp 實作
+│       ├── llm-manager.service.ts     #     多 Config 管理器
+│       ├── llm-provider-registry.service.ts  # Provider 註冊中心 (Factory Pattern)
+│       └── llm-storage.service.ts     #     設定持久化（IndexedDB）
+│
+├── pages/                      # 路由頁面元件
+│   ├── game/                  #   主遊戲頁 (/)
+│   ├── history/               #   歷史紀錄列表 (/history)
+│   └── replay/                #   重播檢視器 (/history/:id, /replay?file=)
+│
+├── components/                 # 可重用 UI 元件
+│   ├── game-board/            #   遊戲面板（任務追蹤器）
+│   ├── game-timeline/         #   時間軸面板（中央）
+│   ├── player-list/           #   玩家列表面板（左側）
+│   ├── game-setup/            #   遊戲設定表單
+│   └── llm-settings/          #   LLM 設定 Dialog
+│
+├── i18n/                       # 國際化
+│   ├── en.ts / zh.ts          #   翻譯資料檔
+│   └── i18n.service.ts        #   翻譯服務
+│
+├── utils/                      # 工具模組
+│   └── record-converter.ts   #   紀錄格式遷移
+│
+└── app.routes.ts               # 路由定義
+```
+
+### 關鍵設計模式 (Key Design Patterns)
+
+#### 基於 Signal 的狀態管理
+- 所有狀態使用 **Angular Signals** 管理（非 RxJS）。專案採用 **Zoneless** 架構——不依賴 `zone.js`。
+- `GameEngineService._state` 是所有遊戲狀態的**唯一真實來源 (Single Source of Truth)**。
+- UI 透過 `computed()` 衍生讀取值。元件一律使用 `ChangeDetectionStrategy.OnPush`。
+
+#### LLM 通訊模式
+- **串流傳輸**: 所有 LLM 回應使用 `AsyncIterable<LLMStreamChunk>` 實現即時 UI 更新。
+- **Append-Only 重試**: 失敗的回應保留在對話歷史中，修正提示以追加方式注入（維持多輪上下文一致性）。最多 2 次驗證重試 + 3 次 API 重試。
+- **Semaphore 節流**: `ProviderSemaphore` 控制每個 Provider 的並發數和最小請求間隔。
+- **漸進式 JSON 解析**: 使用 `best-effort-json-parser` 在串流過程中即時解析不完整的 JSON。
+
+#### Agent 記憶系統
+- 每個 Agent 維護一份**個人筆記** (`note` 欄位)，在每回合結束時透過 `updateNote()` 更新。
+- 成功更新筆記後，Agent 的原始 `history[]` 會**被清空**以防止 Context 爆炸。
+- 筆記跨回合匯整觀察與推理結果，作為持久性記憶運作。
+
+
 ## 技術亮點
 
 ### BYOK (Bring Your Own Key)

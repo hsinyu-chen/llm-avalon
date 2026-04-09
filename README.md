@@ -79,6 +79,187 @@ We welcome community contributions of game logs! If you have an interesting game
    ```
 
 
+## System Architecture & Interfaces
+
+The project strictly uses TypeScript Interfaces to separate the game into three logical layers: **Core Game State**, **Agent Protocols & Actions**, and the **LLM Provider System**. This structure ensures the game rules, AI interactions, and language model APIs remain completely decoupled.
+
+```text
+src/app/
+├── models/                             # Core Domain Models & Data Structures
+│   │
+│   ├── game-config.ts                  # [Environment] System & match configurations
+│   │   └── interface: GameConfig
+│   │
+│   ├── game-state.ts                   # [Core State] State machine & game progress
+│   │   └── interfaces: GameState, PlayerState, GameOptions...
+│   │
+│   ├── game-event.ts                   # [Event Bus] Event records for UI and timelines
+│   │   └── interface: BaseGameEvent
+│   │
+│   ├── game-record.ts                  # [Replay Output] End-game summary & stats
+│   │   └── interfaces: GameRecord, GameRecordPlayer, GameRecordTokenUsage
+│   │
+│   ├── role.ts                         # [Identities] Role & faction properties
+│   │   └── interface: RoleMeta
+│   │
+│   └── agent.interface.ts              # [AI Protocols] LLM interaction contracts & Actions
+│       ├── Agent Entity: IAgent
+│       ├── Phase Contexts: BaseGameContext, VoteContext, SpeakContext...
+│       └── Decision Actions: ProposeTeamAction, SpeechAct, VoteAction...
+│
+└── services/
+    └── llm/
+        └── llm-provider.ts             # [LLM Interfaces] API abstraction for all LLMs
+            ├── Service Provider: LLMProvider, LLMProviderCapabilities...
+            ├── Models & Pricing: LLMModelDefinition, LLMPricingRates...
+            └── Data Streaming: LLMContent, LLMPart, LLMStreamChunk
+```
+
+### 1. Core Game State
+This layer acts as the source of truth, completely agnostic of AI integration. It ensures strict game rule fidelity.
+* **Config & Options (`game-config.ts`, `game-state.ts`)**: Defines application variables and match-specific rules (e.g., Lady of the Lake).
+* **State & Progression (`game-state.ts`, `game-event.ts`)**: Relies on a `GameState` state machine to progress the match and `BaseGameEvent` payloads to render the timeline UI.
+* **Replay Output (`game-record.ts`)**: Aggregates all game events and token consumption statistics when the match concludes.
+
+### 2. Agent Protocols & Actions
+Acting as the intermediary bridge between the game logic and external LLMs, it regulates what the AI knows and how it decides (`agent.interface.ts`).
+* **Agent Entities (`IAgent`)**: Exposes asynchronous lifecycle hooks like `onNightPhase`, `vote`, and `speak`.
+* **State Contexts (Contexts)**: Dynamically scopes the visibility of game information depending on the phase via `BaseGameContext`, `VoteContext`, etc., to prevent cheating.
+* **Decision Constrains (Actions)**: All agent responses must enforce a Chain-of-Thought (CoT) format returning `self_check`, `situation_assessment`, and the specific `action` properties.
+
+### 3. LLM Provider System
+Abstracts away the complexities of different AI services (OpenAI, Gemini) into a unified interface standard (`llm-provider.ts`).
+* **Providers & Capabilites**: Defines communication contracts via `LLMProvider`.
+* **Standardized Payloads**: Transpiles internal histories into AI-readable formats using `LLMContent` and `LLMPart`.
+
+### Game Loop State Machine
+
+The entire game is driven by `GameEngineService.runGameLoop()` — a single-file, 2000+ line state machine (`game-engine.service.ts`). The phase transitions are:
+
+```mermaid
+stateDiagram-v2
+    [*] --> NIGHT: startGame()
+    NIGHT --> OPENING: Role reveal done
+    OPENING --> TeamProposal: Self-introductions done
+
+    state "Round Loop (R1-R5)" as RoundLoop {
+        TeamProposal --> Discussion: Leader proposes team
+        Discussion --> Vote: Discussion concludes
+        Vote --> TeamProposal: REJECTED\n(< 5 fails, rotate leader)
+        Vote --> Mission: PASSED
+        Mission --> MissionDebrief: Game continues
+        MissionDebrief --> TeamProposal: Next round
+    }
+
+    Vote --> GameDebrief: 5th consecutive\nrejection (Evil wins)
+    Mission --> AssassinationDiscussion: Good reaches\n3 victories
+    Mission --> GameDebrief: Evil reaches\n3 victories
+    AssassinationDiscussion --> Assassination
+    Assassination --> GameDebrief
+    GameDebrief --> GAME_OVER
+    GAME_OVER --> [*]
+```
+
+### Agent & Prompt Architecture
+
+The `agents/` directory is the core of LLM behavior tuning. `LLMAgent` (`llm-agent.ts`, 57KB) implements `IAgent` and manages prompt assembly, streaming, and retry logic.
+
+```text
+src/app/agents/
+├── llm-agent.ts               # IAgent implementation for LLMs
+│   ├── buildSystemInstruction()  # Assembles permanent system prompt (game rules & strategy)
+│   ├── buildPrompt()             # Assembles per-action dynamic prompt (identity + intel + note)
+│   └── queryLLMWithValidation()  # Append-only multi-turn retry + JSON stream parsing
+│
+├── prompts/                   # 23 modular prompt template files
+│   ├── schemas.ts             # ★ Centralized JSON Schema registry (enforces structured output)
+│   ├── getSpeakPrompt.ts      #   Discussion phase instructions (largest, 15KB)
+│   ├── getRoleSpecificStrategiesPrompt.ts  # Per-role strategy guides
+│   ├── getVotePrompt.ts / getExecuteMissionPrompt.ts / ...
+│   └── ... (19 more modular prompt files)
+│
+├── human-agent.ts             # Human player agent (browser-based interaction)
+└── random-agent.ts            # Random agent (for testing)
+```
+
+#### Prompt Assembly Pipeline
+
+Every LLM call follows this two-layer structure:
+
+**System Instruction** (built once per game in `buildSystemInstruction()`):
+> §1 Game Overview → §2 Game Rules → §3 Character Abilities → §4 Expansion Rules → §5 Critical Behavioral Rules → §6 Faction Strategies → §7 Role-Specific Strategies → §8 Phase-Specific Hints → §9 Discussion Tactics → §10 Communication Channels → §11 Output Format
+
+**User Prompt** (built per action via `buildPrompt()`):
+> `[PRIVATE DATA - IDENTITY]` → `[PRIVATE DATA - SECRET INTEL]` → `[PRIVATE DATA - YOUR NOTE]` → `[PRIVATE DATA - LAST ANALYSIS]` → `[PUBLIC DATA - COMMON KNOWLEDGE]` → `[CURRENT ACTION INSTRUCTIONS + JSON Schema]`
+
+> **Design Note**: The System Instruction intentionally excludes role-specific identity to maximize provider-side KV cache sharing across all agents in the same game. Role identity is injected per-action in the User Prompt.
+
+### Full Directory Structure
+
+```text
+src/app/
+├── models/                     # Domain models & data structures (documented above)
+├── agents/                     # ★ Agent implementations & prompt engineering
+│   ├── llm-agent.ts           #   LLM agent core (prompt assembly + retry logic)
+│   ├── human-agent.ts         #   Human player
+│   ├── random-agent.ts        #   Random agent (testing)
+│   └── prompts/               #   23 modular prompt templates + schemas
+│
+├── services/
+│   ├── game-engine.service.ts         # ★ Game engine (state machine + main loop, 105KB)
+│   ├── game-record.service.ts         #   Game record persistence (IndexedDB)
+│   ├── prediction.service.ts          #   Prediction feature
+│   ├── human-interaction.service.ts   #   Human-agent bridge
+│   ├── wake-lock.service.ts           #   Prevent screen sleep during games
+│   └── llm/                           #   LLM abstraction layer (documented above)
+│       ├── gemini.service.ts          #     Gemini provider implementation
+│       ├── openai.service.ts          #     OpenAI provider implementation
+│       ├── llama-v2.service.ts        #     llama.cpp provider implementation
+│       ├── llm-manager.service.ts     #     Multi-config orchestrator
+│       ├── llm-provider-registry.service.ts  # Provider registry (factory pattern)
+│       └── llm-storage.service.ts     #     Config persistence (IndexedDB)
+│
+├── pages/                      # Routed page components
+│   ├── game/                  #   Main game page (/)
+│   ├── history/               #   Game history list (/history)
+│   └── replay/                #   Replay viewer (/history/:id, /replay?file=)
+│
+├── components/                 # Reusable UI components
+│   ├── game-board/            #   Game board (mission tracker)
+│   ├── game-timeline/         #   Timeline panel (center)
+│   ├── player-list/           #   Player list panel (left side)
+│   ├── game-setup/            #   Game setup form
+│   └── llm-settings/          #   LLM configuration dialog
+│
+├── i18n/                       # Internationalization
+│   ├── en.ts / zh.ts          #   Translation dictionaries
+│   └── i18n.service.ts        #   Translation service
+│
+├── utils/                      # Utilities
+│   └── record-converter.ts   #   Record format migration
+│
+└── app.routes.ts               # Route definitions
+```
+
+### Key Design Patterns
+
+#### Signal-Based State Management
+- All state managed via **Angular Signals** (not RxJS). The project is **Zoneless** — no `zone.js`.
+- `GameEngineService._state` is the **single source of truth** for all game state.
+- UI reads derived values via `computed()`. Components use `ChangeDetectionStrategy.OnPush`.
+
+#### LLM Communication
+- **Streaming**: All LLM responses use `AsyncIterable<LLMStreamChunk>` for real-time UI updates.
+- **Append-Only Retry**: Failed responses are kept in conversation history; correction prompts are appended (preserving multi-turn context consistency). Up to 2 validation retries + 3 API retries.
+- **Semaphore Throttling**: `ProviderSemaphore` controls per-provider concurrency and minimum request intervals.
+- **Incremental JSON Parsing**: Uses `best-effort-json-parser` to parse incomplete JSON during streaming.
+
+#### Agent Memory System
+- Each agent maintains a **personal note** (`note` field) updated via `updateNote()` at the end of each round.
+- After a successful note update, the agent's raw `history[]` is **cleared** to prevent context explosion.
+- Notes consolidate observations and deductions across rounds, acting as persistent memory.
+
+
 ## Technical Highlights
 
 ### BYOK (Bring Your Own Key)

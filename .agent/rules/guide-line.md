@@ -16,7 +16,6 @@ description: Project Coding Standards and Rules
 
 ## Env
 - Windows, Powershell
-- use git grep for search
 
 # ANGULAR 21+ CODING STANDARDS
 **THIS IS ZONELESS PROJECT**
