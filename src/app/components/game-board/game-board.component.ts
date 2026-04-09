@@ -256,7 +256,6 @@ export class GameBoardComponent {
             }
             case 'ASSASSINATION': {
                 const thoughts: string[] = [];
-                if (e.thought) thoughts.push(`Native CoT: ${e.thought}`);
                 if (e.reasoning) thoughts.push(`Reasoning: ${e.reasoning}`);
                 const assassinText = this.i18n.translate('board.assassinateBtn');
                 let line = `**${e.playerName}** ${assassinText}=> **${e.targetName}**`;
@@ -267,7 +266,6 @@ export class GameBoardComponent {
             }
             case 'DISCUSSION': {
                 const thoughts: string[] = [];
-                if (e.thought) thoughts.push(`Native CoT: ${e.thought}`);
                 if (e.reasoning) thoughts.push(`Reasoning: ${e.reasoning}`);
                 let line = `> **${e.playerName}**: _${e.message || '(PASS)'}_\n`;
                 if (thoughts.length > 0) {
@@ -281,7 +279,6 @@ export class GameBoardComponent {
             case 'TEAM_PROPOSAL':
                 let proposalLine = `👑 **${e.leaderName}** proposed: ${e.teamNames.join(', ')}`;
                 const pThoughts: string[] = [];
-                if (e.thought) pThoughts.push(`Native CoT: ${e.thought}`);
                 if (e.reasoning) pThoughts.push(`Reasoning: ${e.reasoning}`);
                 if (pThoughts.length > 0) {
                     proposalLine += `\n> *${pThoughts.join(' | ')}*`;
@@ -296,7 +293,6 @@ export class GameBoardComponent {
                 const votes = e.votes.map(v => {
                     const vRes = `${v.name}:${v.approve ? '⚪' : '⚫'}`;
                     const vThoughts: string[] = [];
-                    if (v.thought) vThoughts.push(`CoT:${v.thought}`);
                     if (v.reasoning) vThoughts.push(`R:${v.reasoning}`);
                     return vRes + (vThoughts.length > 0 ? ` (*${vThoughts.join(' | ')}*)` : '');
                 }).join(' ');
@@ -308,7 +304,6 @@ export class GameBoardComponent {
                 if (e.reasonings && e.reasonings.length > 0) {
                     res += '\n' + e.reasonings.map(r => {
                         const rThoughts: string[] = [];
-                        if (r.thought) rThoughts.push(`CoT: ${r.thought}`);
                         if (r.reasoning) rThoughts.push(`Reasoning: ${r.reasoning}`);
                         return `> **${r.name}**: ${rThoughts.join(' | ')}`;
                     }).join('\n');
@@ -323,7 +318,6 @@ export class GameBoardComponent {
             case 'GAME_DEBRIEF': {
                 let res = `💬 **${e.playerName} (${this.i18n.translate('board.debrief')})**: ${e.message}`;
                 const dThoughts: string[] = [];
-                if (e.thought) dThoughts.push(`Native CoT: ${e.thought}`);
                 if (e.reasoning) dThoughts.push(`Reasoning: ${e.reasoning}`);
                 if (dThoughts.length > 0) {
                     res += `\n> *${dThoughts.join(' | ')}*`;
