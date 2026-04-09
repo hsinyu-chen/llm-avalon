@@ -4,6 +4,7 @@ import { HumanInteractionService } from '../services/human-interaction.service';
 export class HumanAgent implements IAgent {
     readonly modelName = 'Human';
     private personalNote = '';
+    private noteHistory: { round: number; note: string }[] = [];
     private nightInfoText = '';
 
     constructor(
@@ -14,6 +15,9 @@ export class HumanAgent implements IAgent {
 
     getPersonalNote(): string {
         return this.personalNote;
+    }
+    getNoteHistory(): { round: number; note: string }[] {
+        return this.noteHistory;
     }
 
     getNightInfo(): string {
@@ -59,7 +63,7 @@ export class HumanAgent implements IAgent {
         });
     }
 
-    async shareGameReflection(context: GameReflectionContext, onChunk?: (chunk: string, field: 'reflection' | 'thought' | 'self_check' | 'reasoning' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<any> {
+    async shareGameReflection(context: GameReflectionContext, onChunk?: (chunk: string, field: 'reflection' | 'thought' | 'self_check' | 'reasoning' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<{ reflection: string; thought?: string; self_check?: string; reasoning?: string; situation_assessment?: string; action_strategy?: string; promptText?: string; retryLogs?: string[] }> {
         return { reflection: 'Game ended.' };
     }
 
@@ -67,16 +71,17 @@ export class HumanAgent implements IAgent {
         console.log(`[HumanAgent] System Message: ${message}`);
     }
 
-    async useExcalibur(context: ExcaliburContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string | null> {
-        return null; // TODO: Implement if needed
+    async useExcalibur(context: ExcaliburContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<{ targetId: string | null; thought?: string; reasoning?: string; self_check?: string; situation_assessment?: string; action_strategy?: string; promptText?: string; retryLogs?: string[] }> {
+        return { targetId: null, reasoning: 'Not implemented for Human' }; // TODO: Implement if needed
     }
 
-    async useLadyOfTheLake(context: LadyContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string | null> {
-        return null; // TODO: Implement if needed
+    async useLadyOfTheLake(context: LadyContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<{ targetId: string; thought?: string; reasoning?: string; self_check?: string; situation_assessment?: string; action_strategy?: string; promptText?: string; retryLogs?: string[] }> {
+        return { targetId: '', reasoning: 'Not implemented for Human' }; // TODO: Implement if needed
     }
 
     async updateNote(context: NoteContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string> {
         this.personalNote = context.personalNote;
+        this.noteHistory.push({ round: context.round, note: this.personalNote });
         return this.personalNote;
     }
 }

@@ -148,6 +148,7 @@ export interface SpeechEntry {
 export interface SpeechAct {
     self_check: string;
     reasoning: string;
+    thought?: string;
     situation_assessment: string;
     action_strategy: string;
     action: {
@@ -166,6 +167,7 @@ export interface SpeechAct {
 export interface MissionAction {
     self_check: string;
     reasoning: string;
+    thought?: string;
     situation_assessment: string;
     action_strategy: string;
     action: {
@@ -178,6 +180,7 @@ export interface MissionAction {
 export interface VoteAction {
     self_check: string;
     reasoning: string;
+    thought?: string;
     situation_assessment: string;
     action_strategy: string;
     action: {
@@ -189,6 +192,7 @@ export interface VoteAction {
 export interface ProposeTeamAction {
     self_check: string;
     reasoning: string;
+    thought?: string;
     situation_assessment: string;
     action_strategy: string;
     action: {
@@ -201,6 +205,7 @@ export interface ProposeTeamAction {
 export interface AssassinateAction {
     self_check: string;
     reasoning: string;
+    thought?: string;
     situation_assessment: string;
     action_strategy: string;
     action: {
@@ -240,10 +245,10 @@ export interface IAgent {
     executeMission(context: MissionContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<MissionAction>;
     assassinate(context: AssassinContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<AssassinateAction>;
     speak(context: SpeakContext, onChunk?: (chunk: string, field: 'speech' | 'thought' | 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<SpeechAct>;
-    shareGameReflection(context: GameReflectionContext, onChunk?: (chunk: string, field: 'reflection' | 'thought' | 'self_check' | 'reasoning' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<{ reflection: string; self_check?: string; reasoning?: string; situation_assessment?: string; action_strategy?: string; promptText?: string; retryLogs?: string[] }>;
+    shareGameReflection(context: GameReflectionContext, onChunk?: (chunk: string, field: 'reflection' | 'thought' | 'self_check' | 'reasoning' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<{ reflection: string; thought?: string; self_check?: string; reasoning?: string; situation_assessment?: string; action_strategy?: string; promptText?: string; retryLogs?: string[] }>;
     onSystemMessage(message: string): Promise<void>;
-    useExcalibur(context: ExcaliburContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string | null>;
-    useLadyOfTheLake(context: LadyContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string | null>;
+    useExcalibur(context: ExcaliburContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<{ targetId: string | null; thought?: string; reasoning?: string; self_check?: string; situation_assessment?: string; action_strategy?: string; promptText?: string; retryLogs?: string[] }>;
+    useLadyOfTheLake(context: LadyContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<{ targetId: string; thought?: string; reasoning?: string; self_check?: string; situation_assessment?: string; action_strategy?: string; promptText?: string; retryLogs?: string[] }>;
     updateNote(context: NoteContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string>;
 }
 

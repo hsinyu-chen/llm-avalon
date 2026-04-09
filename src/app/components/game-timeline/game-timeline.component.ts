@@ -44,7 +44,8 @@ export class GameTimelineComponent {
     scrollFrame = viewChild<ElementRef<HTMLDivElement>>('scrollFrame');
 
     selectedPromptText = signal<string | null>(null);
-    selectedReasoningText = signal<string | null>(null);
+    selectedDetailText = signal<string | null>(null);
+    selectedDetailTitle = signal<string>('timeline.reasoning');
     selectedRetryLogs = signal<string[] | null>(null);
     promptDialog = viewChild<ElementRef<HTMLDialogElement>>('promptDialog');
     reasoningDialog = viewChild<ElementRef<HTMLDialogElement>>('reasoningDialog');
@@ -60,17 +61,37 @@ export class GameTimelineComponent {
         this.selectedPromptText.set(null);
     }
 
-    openReasoningDialog(reasoning?: string, thought?: string) {
-        const text = thought?.trim();
-        if (!text) return;
+    openDetailDialog(titleKey: string, text?: string) {
+        const content = text?.trim();
+        if (!content) return;
 
-        this.selectedReasoningText.set(text);
+        this.selectedDetailTitle.set(titleKey);
+        this.selectedDetailText.set(content);
+        this.reasoningDialog()?.nativeElement.showModal();
+    }
+
+    openAnalysisDialog(assessment?: string, strategy?: string) {
+        const lines: string[] = [];
+        if (assessment?.trim()) {
+            lines.push(`### ${this.i18n.translate('timeline.situationAssessment')}`);
+            lines.push(assessment.trim());
+        }
+        if (strategy?.trim()) {
+            if (lines.length > 0) lines.push('\n---');
+            lines.push(`### ${this.i18n.translate('timeline.actionStrategy')}`);
+            lines.push(strategy.trim());
+        }
+
+        if (lines.length === 0) return;
+
+        this.selectedDetailTitle.set('timeline.agentAnalysis');
+        this.selectedDetailText.set(lines.join('\n\n'));
         this.reasoningDialog()?.nativeElement.showModal();
     }
 
     closeReasoningDialog() {
         this.reasoningDialog()?.nativeElement.close();
-        this.selectedReasoningText.set(null);
+        this.selectedDetailText.set(null);
     }
 
     openRetryLogsDialog(logs: string[]) {
@@ -202,6 +223,11 @@ export class GameTimelineComponent {
         // God View: show the sender's note for each event to keep it consistent
         const senderId = (event as any).playerId || (event as any).leaderId;
         return noteKey === senderId;
+    }
+
+    hasVisibleNotes(event: GameEvent): boolean {
+        if (!event.privateNotes) return false;
+        return Object.keys(event.privateNotes).some(key => this.shouldShowNote(event, key));
     }
 
     getAgentModelName(name: string): string | undefined {

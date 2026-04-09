@@ -27,15 +27,15 @@ import { TranslatePipe } from '../../../i18n/translate.pipe';
       <div class="form-grid columns-3">
         <div class="form-group-vertical">
           <label for="llamaInputPrice">{{ 'settings.customInputPrice' | translate }}</label>
-          <input id="llamaInputPrice" type="number" [(ngModel)]="config.settings.inputPrice" (ngModelChange)="configChanged.emit()" step="0.01" min="0">
+          <input id="llamaInputPrice" type="text" inputmode="decimal" [ngModel]="config.settings.inputPrice" (ngModelChange)="config.settings.inputPrice = $event === '' ? undefined : +$event; configChanged.emit()" placeholder="0.00">
         </div>
         <div class="form-group-vertical">
           <label for="llamaCachePrice">{{ 'settings.customCachePrice' | translate }}</label>
-          <input id="llamaCachePrice" type="number" [(ngModel)]="config.settings.cacheInputPrice" (ngModelChange)="configChanged.emit()" step="0.01" min="0">
+          <input id="llamaCachePrice" type="text" inputmode="decimal" [ngModel]="config.settings.cacheInputPrice" (ngModelChange)="config.settings.cacheInputPrice = $event === '' ? undefined : +$event; configChanged.emit()" placeholder="0.00">
         </div>
         <div class="form-group-vertical">
           <label for="llamaOutputPrice">{{ 'settings.customOutputPrice' | translate }}</label>
-          <input id="llamaOutputPrice" type="number" [(ngModel)]="config.settings.outputPrice" (ngModelChange)="configChanged.emit()" step="0.01" min="0">
+          <input id="llamaOutputPrice" type="text" inputmode="decimal" [ngModel]="config.settings.outputPrice" (ngModelChange)="config.settings.outputPrice = $event === '' ? undefined : +$event; configChanged.emit()" placeholder="0.00">
         </div>
       </div>
 
@@ -57,34 +57,34 @@ import { TranslatePipe } from '../../../i18n/translate.pipe';
       <div class="form-grid columns-3">
         <div class="form-group-vertical">
           <label for="llamaTemp">{{ 'settings.temperature' | translate }}</label>
-          <input id="llamaTemp" type="number" [(ngModel)]="config.settings.temperature" step="0.1" min="0" max="2">
+          <input id="llamaTemp" type="text" inputmode="decimal" [ngModel]="config.settings.temperature" (ngModelChange)="config.settings.temperature = $event === '' ? undefined : +$event" placeholder="0.7">
         </div>
         <div class="form-group-vertical">
           <label for="llamaFreq">{{ 'settings.freqPenalty' | translate }}</label>
-          <input id="llamaFreq" type="number" [(ngModel)]="config.settings.frequency_penalty" (ngModelChange)="configChanged.emit()" step="0.1" min="-2" max="2">
+          <input id="llamaFreq" type="text" inputmode="decimal" [ngModel]="config.settings.frequency_penalty" (ngModelChange)="config.settings.frequency_penalty = $event === '' ? undefined : +$event; configChanged.emit()" placeholder="0.0">
         </div>
         <div class="form-group-vertical">
           <label for="llamaPres">{{ 'settings.presPenalty' | translate }}</label>
-          <input id="llamaPres" type="number" [(ngModel)]="config.settings.presence_penalty" (ngModelChange)="configChanged.emit()" step="0.1" min="-2" max="2">
+          <input id="llamaPres" type="text" inputmode="decimal" [ngModel]="config.settings.presence_penalty" (ngModelChange)="config.settings.presence_penalty = $event === '' ? undefined : +$event; configChanged.emit()" placeholder="0.0">
         </div>
       </div>
 
       <div class="form-grid columns-4">
         <div class="form-group-vertical">
           <label for="llamaTopP">Top P</label>
-          <input id="llamaTopP" type="number" [(ngModel)]="config.settings.additionalSettings!['topP']" (ngModelChange)="configChanged.emit()" step="0.05" min="0" max="1">
+          <input id="llamaTopP" type="text" inputmode="decimal" [ngModel]="config.settings.additionalSettings!['topP']" (ngModelChange)="config.settings.additionalSettings!['topP'] = $event === '' ? undefined : +$event; configChanged.emit()" placeholder="0.95">
         </div>
         <div class="form-group-vertical">
           <label for="llamaTopK">Top K</label>
-          <input id="llamaTopK" type="number" [(ngModel)]="config.settings.additionalSettings!['topK']" (ngModelChange)="configChanged.emit()" step="1" min="0">
+          <input id="llamaTopK" type="text" inputmode="decimal" [ngModel]="config.settings.additionalSettings!['topK']" (ngModelChange)="config.settings.additionalSettings!['topK'] = $event === '' ? undefined : +$event; configChanged.emit()" placeholder="40">
         </div>
         <div class="form-group-vertical">
           <label for="llamaMinP">Min P</label>
-          <input id="llamaMinP" type="number" [(ngModel)]="config.settings.additionalSettings!['minP']" (ngModelChange)="configChanged.emit()" step="0.01" min="0" max="1">
+          <input id="llamaMinP" type="text" inputmode="decimal" [ngModel]="config.settings.additionalSettings!['minP']" (ngModelChange)="config.settings.additionalSettings!['minP'] = $event === '' ? undefined : +$event; configChanged.emit()" placeholder="0.05">
         </div>
         <div class="form-group-vertical">
           <label for="llamaRepPen">Rep. Penalty</label>
-          <input id="llamaRepPen" type="number" [(ngModel)]="config.settings.additionalSettings!['repetitionPenalty']" (ngModelChange)="configChanged.emit()" step="0.1" min="0" max="2">
+          <input id="llamaRepPen" type="text" inputmode="decimal" [ngModel]="config.settings.additionalSettings!['repetitionPenalty']" (ngModelChange)="config.settings.additionalSettings!['repetitionPenalty'] = $event === '' ? undefined : +$event; configChanged.emit()" placeholder="1.1">
         </div>
       </div>
     </div>

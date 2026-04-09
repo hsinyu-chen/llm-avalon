@@ -26,30 +26,30 @@ import { TranslatePipe } from '../../../i18n/translate.pipe';
       <div class="form-grid columns-3">
         <div class="form-group-vertical">
           <label for="openaiInputPrice">{{ 'settings.customInputPrice' | translate }}</label>
-          <input id="openaiInputPrice" type="number" [(ngModel)]="config.settings.inputPrice" (ngModelChange)="configChanged.emit()" step="0.01" min="0">
+          <input id="openaiInputPrice" type="text" inputmode="decimal" [ngModel]="config.settings.inputPrice" (ngModelChange)="config.settings.inputPrice = $event === '' ? undefined : +$event; configChanged.emit()" placeholder="0.00">
         </div>
         <div class="form-group-vertical">
           <label for="openaiCachePrice">{{ 'settings.customCachePrice' | translate }}</label>
-          <input id="openaiCachePrice" type="number" [(ngModel)]="config.settings.cacheInputPrice" (ngModelChange)="configChanged.emit()" step="0.01" min="0">
+          <input id="openaiCachePrice" type="text" inputmode="decimal" [ngModel]="config.settings.cacheInputPrice" (ngModelChange)="config.settings.cacheInputPrice = $event === '' ? undefined : +$event; configChanged.emit()" placeholder="0.00">
         </div>
         <div class="form-group-vertical">
           <label for="openaiOutputPrice">{{ 'settings.customOutputPrice' | translate }}</label>
-          <input id="openaiOutputPrice" type="number" [(ngModel)]="config.settings.outputPrice" (ngModelChange)="configChanged.emit()" step="0.01" min="0">
+          <input id="openaiOutputPrice" type="text" inputmode="decimal" [ngModel]="config.settings.outputPrice" (ngModelChange)="config.settings.outputPrice = $event === '' ? undefined : +$event; configChanged.emit()" placeholder="0.00">
         </div>
       </div>
 
       <div class="form-grid columns-3">
         <div class="form-group-vertical">
           <label for="openaiTemp">{{ 'settings.temperature' | translate }}</label>
-          <input id="openaiTemp" type="number" [(ngModel)]="config.settings.temperature" step="0.1" min="0" max="2">
+          <input id="openaiTemp" type="text" inputmode="decimal" [ngModel]="config.settings.temperature" (ngModelChange)="config.settings.temperature = $event === '' ? undefined : +$event" placeholder="0.7">
         </div>
         <div class="form-group-vertical">
           <label for="openaiFreq">{{ 'settings.freqPenalty' | translate }}</label>
-          <input id="openaiFreq" type="number" [(ngModel)]="config.settings.frequency_penalty" (ngModelChange)="configChanged.emit()" step="0.1" min="-2" max="2">
+          <input id="openaiFreq" type="text" inputmode="decimal" [ngModel]="config.settings.frequency_penalty" (ngModelChange)="config.settings.frequency_penalty = $event === '' ? undefined : +$event; configChanged.emit()" placeholder="0.0">
         </div>
         <div class="form-group-vertical">
           <label for="openaiPres">{{ 'settings.presPenalty' | translate }}</label>
-          <input id="openaiPres" type="number" [(ngModel)]="config.settings.presence_penalty" (ngModelChange)="configChanged.emit()" step="0.1" min="-2" max="2">
+          <input id="openaiPres" type="text" inputmode="decimal" [ngModel]="config.settings.presence_penalty" (ngModelChange)="config.settings.presence_penalty = $event === '' ? undefined : +$event; configChanged.emit()" placeholder="0.0">
         </div>
       </div>
 

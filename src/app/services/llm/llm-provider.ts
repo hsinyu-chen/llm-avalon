@@ -322,5 +322,4 @@ export interface LLMConfig {
     name: string;             // User-defined name
     provider: string;         // 'gemini', 'openai', 'llama.cpp'
     settings: LLMProviderConfig;
-    isDefault?: boolean;
 }

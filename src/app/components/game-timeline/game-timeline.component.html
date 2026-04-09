@@ -10,9 +10,13 @@
         <button class="debug-prompt-btn retry-logs-btn" (click)="openRetryLogsDialog(event.retryLogs)"
             title="View Retry Logs">📜</button>
         }
-        @if (event.thought?.trim()) {
-        <button class="debug-prompt-btn" (click)="openReasoningDialog(undefined, event.thought)"
-            title="View Reasoning">🧠</button>
+        @if (event.status !== 'pending' && event.thought?.trim()) {
+        <button class="debug-prompt-btn" (click)="openDetailDialog('timeline.reasoning', event.thought)"
+            [title]="'timeline.reasoning' | translate">🧠</button>
+        }
+        @if (event.status !== 'pending' && (event.situation_assessment?.trim() || event.action_strategy?.trim())) {
+        <button class="debug-prompt-btn" (click)="openAnalysisDialog(event.situation_assessment, event.action_strategy)"
+            [title]="'timeline.agentAnalysis' | translate">📊</button>
         }
         }
         @if (event.promptSpeed) {
@@ -98,13 +102,11 @@
                         @if (event.message) {
                         <div class="message" [innerHTML]="event.message | markdown"></div>
                         }
-                        @if (event.privateNotes) {
+                        @if (hasVisibleNotes(event)) {
                         <div class="private-notes">
                             @for (note of (event.privateNotes | keyvalue); track note.key) {
                             @if (shouldShowNote(event, note.key)) {
-                            <div class="private-note-item">
-                                {{ note.value }}
-                            </div>
+                            <div class="private-note-item" [innerHTML]="note.value | markdown"></div>
                             }
                             }
                         </div>
@@ -137,23 +139,19 @@
                         <div class="inner-thoughts" [class.no-border]="event.teamIds.length === 0"
                             [class.with-message]="event.teamIds.length > 0">
                             @if (event.thought && event.teamIds.length === 0 && !event.reasoning) { <div
-                                class="thought-line native-cot">{{
-                                event.thought }}</div> }
-                            @if (event.reasoning) { <div class="thought-line formal-reasoning">{{ event.reasoning }}
-                            </div> }
+                                class="thought-line native-cot" [innerHTML]="event.thought | markdown"></div> }
+                            @if (event.reasoning) { <div class="thought-line formal-reasoning" [innerHTML]="event.reasoning | markdown"></div> }
                             @if (event.status === 'pending' && event.teamIds.length === 0) {
                             <span class="spinner mini"></span>
                             }
                         </div>
                         }
                         }
-                        @if (event.privateNotes) {
+                        @if (hasVisibleNotes(event)) {
                         <div class="private-notes">
                             @for (note of (event.privateNotes | keyvalue); track note.key) {
                             @if (shouldShowNote(event, note.key)) {
-                            <div class="private-note-item">
-                                {{ note.value }}
-                            </div>
+                            <div class="private-note-item" [innerHTML]="note.value | markdown"></div>
                             }
                             }
                         </div>
@@ -201,12 +199,22 @@
                                 <button class="debug-prompt-btn" (click)="openPromptDialog(v.promptText)"
                                     title="View Prompt">🔍</button>
                                 }
+                                @if (v.thought?.trim()) {
+                                <button class="debug-prompt-btn"
+                                    (click)="openDetailDialog('timeline.reasoning', v.thought)"
+                                    [title]="'timeline.reasoning' | translate">🧠</button>
+                                }
+                                @if (v.situation_assessment?.trim() || v.action_strategy?.trim()) {
+                                <button class="debug-prompt-btn"
+                                    (click)="openAnalysisDialog(v.situation_assessment, v.action_strategy)"
+                                    [title]="'timeline.agentAnalysis' | translate">📊</button>
+                                }
                                 }
                                 <span class="voter-choice">{{ v.approve ? '⚪' : '⚫' }}</span>
                             </div>
                             @if (showGodView()) {
                             @if (v.reasoning) {
-                            <div class="vote-reasoning">{{ v.reasoning }}</div>
+                            <div class="vote-reasoning" [innerHTML]="v.reasoning | markdown"></div>
                             }
                             }
                         </div>
@@ -265,10 +273,25 @@
                         <div class="mission-reasonings">
                             @for (r of event.reasonings; track r.name) {
                             <div class="reasoning-item">
-                                <strong>{{r.name}}</strong>: {{r.reasoning}}
+                                <strong>{{r.name}}</strong>: <span [innerHTML]="r.reasoning | markdown"></span>
                                 @if (r.promptText) {
                                 <button class="debug-prompt-btn" (click)="openPromptDialog(r.promptText)"
                                     title="View Prompt">🔍</button>
+                                }
+                                @if (r.self_check?.trim()) {
+                                <button class="debug-prompt-btn"
+                                    (click)="openDetailDialog('timeline.selfCheck', r.self_check)"
+                                    [title]="'timeline.selfCheck' | translate">📋</button>
+                                }
+                                @if (r.thought?.trim()) {
+                                <button class="debug-prompt-btn"
+                                    (click)="openDetailDialog('timeline.reasoning', r.thought)"
+                                    [title]="'timeline.reasoning' | translate">🧠</button>
+                                }
+                                @if (r.situation_assessment?.trim() || r.action_strategy?.trim()) {
+                                <button class="debug-prompt-btn"
+                                    (click)="openAnalysisDialog(r.situation_assessment, r.action_strategy)"
+                                    [title]="'timeline.agentAnalysis' | translate">📊</button>
                                 }
                             </div>
                             }
@@ -304,23 +327,19 @@
                         <div class="inner-thoughts" [class.no-border]="!event.targetId"
                             [class.with-message]="!!event.targetId">
                             @if (event.thought && !event.targetId && !event.reasoning) { <div
-                                class="thought-line native-cot">{{
-                                event.thought }}</div> }
-                            @if (event.reasoning) { <div class="thought-line formal-reasoning">{{ event.reasoning }}
-                            </div> }
+                                class="thought-line native-cot" [innerHTML]="event.thought | markdown"></div> }
+                            @if (event.reasoning) { <div class="thought-line formal-reasoning" [innerHTML]="event.reasoning | markdown"></div> }
                             @if (event.status === 'pending' && !event.targetId) {
                             <span class="spinner mini"></span>
                             }
                         </div>
                         }
                         }
-                        @if (event.privateNotes) {
+                        @if (hasVisibleNotes(event)) {
                         <div class="private-notes">
                             @for (note of (event.privateNotes | keyvalue); track note.key) {
                             @if (shouldShowNote(event, note.key)) {
-                            <div class="private-note-item">
-                                {{ note.value }}
-                            </div>
+                            <div class="private-note-item" [innerHTML]="note.value | markdown"></div>
                             }
                             }
                         </div>
@@ -393,13 +412,11 @@
                         }
                         }
                         <div class="message" [innerHTML]="event.message | markdown"></div>
-                        @if (event.privateNotes) {
+                        @if (hasVisibleNotes(event)) {
                         <div class="private-notes">
                             @for (note of (event.privateNotes | keyvalue); track note.key) {
                             @if (shouldShowNote(event, note.key)) {
-                            <div class="private-note-item">
-                                {{ note.value }}
-                            </div>
+                            <div class="private-note-item" [innerHTML]="note.value | markdown"></div>
                             }
                             }
                         </div>
@@ -452,11 +469,11 @@
     <dialog #reasoningDialog class="prompt-dialog" (click)="onDialogClick($event)"
         (keydown.escape)="closeReasoningDialog()" tabindex="-1">
         <div class="dialog-header">
-            <h4>Reasoning (CoT)</h4>
+            <h4>{{ selectedDetailTitle() | translate }}</h4>
             <button class="close-btn" (click)="closeReasoningDialog()">✕</button>
         </div>
         <div class="dialog-body">
-            <div class="reasoning-text" [innerHTML]="selectedReasoningText() | markdown"></div>
+            <div class="reasoning-text" [innerHTML]="selectedDetailText() | markdown"></div>
         </div>
     </dialog>
 </div>

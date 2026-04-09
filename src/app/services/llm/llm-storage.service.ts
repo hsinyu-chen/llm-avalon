@@ -69,17 +69,6 @@ export class LLMStorageService {
     }
 
     async save(config: LLMConfig): Promise<void> {
-        // Ensure only one default
-        if (config.isDefault) {
-            const all = await this.getAll();
-            for (const item of all) {
-                if (item.id !== config.id && item.isDefault) {
-                    item.isDefault = false;
-                    await this.save(item);
-                }
-            }
-        }
-
         const store = await this.getStore('readwrite');
         return new Promise((resolve) => {
             const request = store.put(config);
@@ -110,13 +99,5 @@ export class LLMStorageService {
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error);
         });
-    }
-
-    async setDefault(id: string): Promise<void> {
-        const configs = await this.getAll();
-        for (const config of configs) {
-            config.isDefault = (config.id === id);
-            await this.save(config);
-        }
     }
 }

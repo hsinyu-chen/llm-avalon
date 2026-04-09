@@ -186,6 +186,8 @@ export class GameEngineService {
                             this.changePhase(GamePhase.Mission, { consecutiveFailedVotes: 0 });
                         } else {
                             if (voteResult.failCount >= 5) {
+                                await this.updateAgentNotes(instanceId);
+                                if (isStale()) return;
                                 this.endGame(Team.Evil);
                                 this.changePhase(GamePhase.GameDebrief);
                             } else {
@@ -209,6 +211,8 @@ export class GameEngineService {
 
                         if (failCount >= 3) {
                             this.log(`Evil wins by points: ${failCount} missions failed.`);
+                            await this.updateAgentNotes(instanceId);
+                            if (isStale()) return;
                             this.endGame(Team.Evil);
                             this.changePhase(GamePhase.GameDebrief);
                         } else if (successCount >= 3) {
@@ -390,6 +394,15 @@ export class GameEngineService {
                             else if (field === 'thought') ev.thought = (ev.thought || '') + chunk;
                             else if (field === 'self_check') ev.self_check = (ev.self_check || '') + chunk;
 
+                            else if (field === 'situation_assessment') {
+                                ev.situation_assessment = (ev.situation_assessment || '') + chunk;
+                                if ((player.agent as any).updateStreamingAssessment) (player.agent as any).updateStreamingAssessment(chunk);
+                            }
+                            else if (field === 'action_strategy') {
+                                ev.action_strategy = (ev.action_strategy || '') + chunk;
+                                if ((player.agent as any).updateStreamingStrategy) (player.agent as any).updateStreamingStrategy(chunk);
+                            }
+
                             if (metadata) {
                                 console.log('[game-engine] OPENING streaming metadata received:', metadata);
                                 if (metadata.promptSpeed) ev.promptSpeed = metadata.promptSpeed;
@@ -422,8 +435,11 @@ export class GameEngineService {
                         ev.message = message;
                         ev.self_check = result.self_check;
                         ev.reasoning = result.reasoning;
+                        ev.thought = result.thought;
                         ev.promptText = result.promptText;
                         ev.retryLogs = result.retryLogs;
+                        ev.situation_assessment = result.situation_assessment;
+                        ev.action_strategy = result.action_strategy;
                         ev.status = 'success';
                         ev.cost = (player.agent.getTokenUsage?.()?.totalCost ?? 0) - costBefore;
                         this.processHiddenSignal(player.agent.id, result.action.pass_hidden_signal, ev);
@@ -533,6 +549,7 @@ export class GameEngineService {
                     ev.teamIds = teamIds;
                     ev.teamNames = teamIds.map(id => s.players.find(p => p.agent.id === id)?.agent.name || id);
                     ev.reasoning = result.reasoning;
+                    ev.thought = result.thought;
                     ev.self_check = result.self_check;
                     ev.situation_assessment = result.situation_assessment;
                     ev.action_strategy = result.action_strategy;
@@ -816,6 +833,7 @@ export class GameEngineService {
                                 ev.message = speech;
                                 ev.self_check = result.self_check;
                                 ev.reasoning = result.reasoning;
+                                ev.thought = result.thought;
                                 ev.situation_assessment = result.situation_assessment;
                                 ev.action_strategy = result.action_strategy;
                             }
@@ -961,6 +979,7 @@ export class GameEngineService {
                     id: p.agent.id,
                     name: p.agent.name,
                     approve: voteResult.action.voteChoice,
+                    thought: voteResult.thought,
                     reasoning: voteResult.reasoning,
                     situation_assessment: voteResult.situation_assessment,
                     action_strategy: voteResult.action_strategy,
@@ -1062,6 +1081,7 @@ export class GameEngineService {
             const reasonings = onMission.map((p, idx) => ({
                 name: p.agent.name,
                 reasoning: missionResponses[idx].reasoning || 'No reasoning provided',
+                thought: missionResponses[idx].thought,
                 situation_assessment: missionResponses[idx].situation_assessment,
                 action_strategy: missionResponses[idx].action_strategy,
                 promptText: missionResponses[idx].promptText,
@@ -1132,11 +1152,12 @@ export class GameEngineService {
         this.log(`[Excalibur] Waiting for ${holder.agent.name} to decide...`);
 
         try {
-            const targetId = await holder.agent.useExcalibur({
+            const result = await holder.agent.useExcalibur({
                 ...this.buildBaseContext(holder.agent.id),
                 holderId: holder.agent.id,
                 missionCardHolderIds: onMission.map(p => p.agent.id),
             });
+            const targetId = result.targetId;
 
             if (targetId && onMission.some(p => p.agent.id === targetId)) {
                 const targetIndex = onMission.findIndex(p => p.agent.id === targetId);
@@ -1151,7 +1172,14 @@ export class GameEngineService {
                         subType: 'EXCALIBUR_SWITCHED',
                         round: state.currentRound,
                         message: this.i18n.translate('engine.excaliburSwitched', { holder: holder.agent.name, target: targetId }),
-                        icon: '⚔️'
+                        icon: '⚔️',
+                        thought: result.thought,
+                        reasoning: result.reasoning,
+                        self_check: result.self_check,
+                        situation_assessment: result.situation_assessment,
+                        action_strategy: result.action_strategy,
+                        promptText: result.promptText,
+                        retryLogs: result.retryLogs,
                     });
                     return finalResults;
                 }
@@ -1287,6 +1315,7 @@ export class GameEngineService {
                     ev.targetName = targetPlayer?.agent.name || targetId;
                     ev.self_check = result.self_check;
                     ev.reasoning = result.reasoning;
+                    ev.thought = result.thought;
                     ev.situation_assessment = result.situation_assessment;
                     ev.action_strategy = result.action_strategy;
                     ev.promptText = result.promptText;
@@ -1415,6 +1444,7 @@ export class GameEngineService {
                             ev.message = result.reflection;
                             ev.self_check = result.self_check;
                             ev.reasoning = result.reasoning;
+                            ev.thought = result.thought;
                             ev.situation_assessment = result.situation_assessment;
                             ev.action_strategy = result.action_strategy;
                         }
@@ -1502,8 +1532,10 @@ export class GameEngineService {
             const costsBefore = Object.fromEntries(state.players.map(p => [p.agent.id, p.agent.getTokenUsage?.()?.totalCost ?? 0]));
             const playerTokens: Record<string, { prompt: number, completion: number, cached: number }> = {};
 
+            const playerNotes: Record<string, string> = {};
+
             await Promise.all(state.players.map(async p => {
-                await p.agent.updateNote({
+                const newNote = await p.agent.updateNote({
                     ...this.buildBaseContext(p.agent.id),
                     playerCount: state.players.length,
                     recentEvents,
@@ -1527,6 +1559,8 @@ export class GameEngineService {
                         });
                     }
                 });
+                playerNotes[p.agent.id] = newNote;
+
                 this._state.update(s => {
                     const newEvents = [...s.events];
                     const ev = newEvents[eventIndex];
@@ -1548,6 +1582,7 @@ export class GameEngineService {
                     ev.status = 'success';
                     ev.message = this.i18n.translate('board.updatingNotes', { names: 'Everyone' }).split('...')[0].trim() + ' Done.';
                     ev.cost = state.players.reduce((acc, p) => acc + ((p.agent.getTokenUsage?.()?.totalCost ?? 0) - (costsBefore[p.agent.id] || 0)), 0);
+                    ev.privateNotes = playerNotes;
                 }
                 return { ...s, events: newEvents };
             });
@@ -1558,6 +1593,14 @@ export class GameEngineService {
         } finally {
             this.updateState({ updatingNotePlayerIds: [] });
         }
+    }
+
+    private collectAllAgentNotes(): Record<string, string> {
+        const notes: Record<string, string> = {};
+        for (const p of this._state().players) {
+            notes[p.agent.id] = p.agent.getPersonalNote();
+        }
+        return notes;
     }
 
     private async handleLadyOfTheLake(instanceId: number) {
@@ -1574,11 +1617,12 @@ export class GameEngineService {
         this.log(`[Lady of the Lake] Waiting for ${holder.agent.name} to use the card...`);
 
         try {
-            const targetId = await holder.agent.useLadyOfTheLake({
+            const result = await holder.agent.useLadyOfTheLake({
                 ...this.buildBaseContext(holder.agent.id),
                 holderId: holder.agent.id,
                 ladyHistory: state.ladyHistory || []
             });
+            const targetId = result.targetId;
 
             if (targetId && targetId !== holder.agent.id) {
                 const target = state.players.find(p => p.agent.id === targetId);
@@ -1591,7 +1635,14 @@ export class GameEngineService {
                         subType: 'LADY_CHECKED',
                         round: state.currentRound,
                         message: this.i18n.translate('engine.ladyChecked', { holder: holder.agent.name, target: target.agent.name }),
-                        icon: '🧚‍♀️'
+                        icon: '🧚‍♀️',
+                        thought: result.thought,
+                        reasoning: result.reasoning,
+                        self_check: result.self_check,
+                        situation_assessment: result.situation_assessment,
+                        action_strategy: result.action_strategy,
+                        promptText: result.promptText,
+                        retryLogs: result.retryLogs,
                     });
 
                     // Update holder for next round

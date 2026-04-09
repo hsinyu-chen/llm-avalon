@@ -105,6 +105,11 @@ export const en = {
     timeline: {
         title: 'Game Timeline',
         reasoning: 'Reasoning',
+        situationAssessment: 'Situation Assessment',
+        actionStrategy: 'Action Strategy',
+        agentAnalysis: 'Agent Analysis',
+        nativeCoT: 'Native CoT',
+        selfCheck: 'Self-Check',
         round: 'Round {{round}}',
         waiting: 'Waiting for game to start...',
         mission: 'Mission',

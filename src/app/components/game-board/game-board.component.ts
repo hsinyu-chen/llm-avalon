@@ -256,43 +256,62 @@ export class GameBoardComponent {
             }
             case 'ASSASSINATION': {
                 const thoughts: string[] = [];
-                if (e.reasoning) thoughts.push(e.reasoning);
+                if (e.thought) thoughts.push(`Native CoT: ${e.thought}`);
+                if (e.reasoning) thoughts.push(`Reasoning: ${e.reasoning}`);
                 const assassinText = this.i18n.translate('board.assassinateBtn');
                 let line = `**${e.playerName}** ${assassinText}=> **${e.targetName}**`;
                 if (thoughts.length > 0) {
-                    line += `\n> *COT: ${thoughts.join(' | ')}*`;
+                    line += `\n> *${thoughts.join(' | ')}*`;
                 }
                 return line;
             }
             case 'DISCUSSION': {
                 const thoughts: string[] = [];
-                if (e.reasoning) thoughts.push(e.reasoning);
+                if (e.thought) thoughts.push(`Native CoT: ${e.thought}`);
+                if (e.reasoning) thoughts.push(`Reasoning: ${e.reasoning}`);
                 let line = `> **${e.playerName}**: _${e.message || '(PASS)'}_\n`;
                 if (thoughts.length > 0) {
-                    line += `\n> *COT: ${thoughts.join(' | ')}*`;
+                    line += `\n> *${thoughts.join(' | ')}*`;
                 }
                 if (e.privateNotes && e.privateNotes[e.playerId]) {
-                    line += `\n> *${e.privateNotes[e.playerId]}*`;
+                    line += `\n> *Note: ${e.privateNotes[e.playerId]}*`;
                 }
                 return line;
             }
             case 'TEAM_PROPOSAL':
-                let proposalLine = `👑 **${e.leaderName}** proposed: ${e.teamNames.join(', ')}${e.reasoning ? ` (*${e.reasoning}*)` : ''}`;
+                let proposalLine = `👑 **${e.leaderName}** proposed: ${e.teamNames.join(', ')}`;
+                const pThoughts: string[] = [];
+                if (e.thought) pThoughts.push(`Native CoT: ${e.thought}`);
+                if (e.reasoning) pThoughts.push(`Reasoning: ${e.reasoning}`);
+                if (pThoughts.length > 0) {
+                    proposalLine += `\n> *${pThoughts.join(' | ')}*`;
+                }
                 if (e.privateNotes && e.privateNotes[e.leaderId]) {
-                    proposalLine += `\n> *${e.privateNotes[e.leaderId]}*`;
+                    proposalLine += `\n> *Note: ${e.privateNotes[e.leaderId]}*`;
                 }
                 return proposalLine;
             case 'VOTE_RESULTS': {
                 const result = e.passed ? '✅ PASSED' : '❌ REJECTED';
                 const team = e.teamNames ? ` [${e.teamNames.join(', ')}]` : '';
-                const votes = e.votes.map(v => `${v.name}:${v.approve ? '⚪' : '⚫'}${v.reasoning ? ` (*${v.reasoning}*)` : ''}`).join(' ');
+                const votes = e.votes.map(v => {
+                    const vRes = `${v.name}:${v.approve ? '⚪' : '⚫'}`;
+                    const vThoughts: string[] = [];
+                    if (v.thought) vThoughts.push(`CoT:${v.thought}`);
+                    if (v.reasoning) vThoughts.push(`R:${v.reasoning}`);
+                    return vRes + (vThoughts.length > 0 ? ` (*${vThoughts.join(' | ')}*)` : '');
+                }).join(' ');
                 return `🗳 ${result}${team} — ${votes}`;
             }
             case 'MISSION_OUTCOME': {
                 const icon = e.succeeded ? '🏆' : '💀';
                 let res = `${icon} Mission ${e.succeeded ? 'SUCCESS' : 'FAIL'} (fails: ${e.failsCount}) — Team: ${e.teamNames.join(', ')}`;
                 if (e.reasonings && e.reasonings.length > 0) {
-                    res += '\n' + e.reasonings.map(r => `> **${r.name}** (${this.i18n.translate('timeline.reasoning')}): ${r.reasoning}`).join('\n');
+                    res += '\n' + e.reasonings.map(r => {
+                        const rThoughts: string[] = [];
+                        if (r.thought) rThoughts.push(`CoT: ${r.thought}`);
+                        if (r.reasoning) rThoughts.push(`Reasoning: ${r.reasoning}`);
+                        return `> **${r.name}**: ${rThoughts.join(' | ')}`;
+                    }).join('\n');
                 }
                 return res;
             }
@@ -303,8 +322,14 @@ export class GameBoardComponent {
                 return `\n🏁 **GAME OVER** — ${e.winner === 'GOOD' ? 'Good wins' : 'Evil wins'}: ${e.reason}`;
             case 'GAME_DEBRIEF': {
                 let res = `💬 **${e.playerName} (${this.i18n.translate('board.debrief')})**: ${e.message}`;
+                const dThoughts: string[] = [];
+                if (e.thought) dThoughts.push(`Native CoT: ${e.thought}`);
+                if (e.reasoning) dThoughts.push(`Reasoning: ${e.reasoning}`);
+                if (dThoughts.length > 0) {
+                    res += `\n> *${dThoughts.join(' | ')}*`;
+                }
                 if (e.privateNotes && e.privateNotes[e.playerId]) {
-                    res += `\n> *${e.privateNotes[e.playerId]}*`;
+                    res += `\n> *Note: ${e.privateNotes[e.playerId]}*`;
                 }
                 return res;
             }

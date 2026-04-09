@@ -107,7 +107,7 @@ export class LLMAgent implements IAgent {
         this.resolveModelName();
     }
 
-    private async resolveModelName(): Promise<void> {
+    private resolveModelName(): void {
         try {
             if (this.configId) {
                 const configs = this.llmManager.configs();
@@ -117,12 +117,8 @@ export class LLMAgent implements IAgent {
                     return;
                 }
             }
-            const active = this.llmManager.getDefaultConfig();
-            if (active) {
-                this._modelName = active.settings.modelId || active.name || active.provider;
-            }
         } catch {
-            this._modelName = 'LLM';
+            // Ignore — keep default 'LLM'
         }
     }
 
@@ -232,22 +228,6 @@ export class LLMAgent implements IAgent {
     }
 
     async executeMission(context: MissionContext, onChunk?: (chunk: string, field: 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<MissionAction> {
-        const teamInfo = ROLE_META[this.myRole!].team;
-        if (teamInfo === Team.Good) {
-            const msg = this.i18n.translate('agent.mission.goodSuccessReasoning');
-            const check = this.i18n.translate('agent.mission.goodSuccessCheck');
-            this.history.push(this.i18n.translate('agent.mission.historyGoodMustSuccess', { round: context.round, msg }));
-            return {
-                self_check: check,
-                reasoning: msg,
-                situation_assessment: this.lastAssessment,
-                action_strategy: this.lastStrategy,
-                action: {
-                    playedMissionResult: true
-                }
-            };
-        }
-
         const prompt = this.buildPrompt(
             context,
             'executeMission',
@@ -260,6 +240,10 @@ export class LLMAgent implements IAgent {
                 responseSchema: getAgentResponseSchema('executeMission', this.i18n.translate('setup.languageName'))
             },
             (parsed) => {
+                const teamInfo = ROLE_META[this.myRole!].team;
+                if (teamInfo === Team.Good && parsed.action?.playedMissionResult === false) {
+                    return 'Good players MUST play Success (true).';
+                }
                 if (!parsed.action || typeof parsed.action.playedMissionResult !== 'boolean') return 'Response must contain action.playedMissionResult (boolean).';
                 return null;
             },
@@ -365,7 +349,7 @@ export class LLMAgent implements IAgent {
     }
 
 
-    async useExcalibur(context: ExcaliburContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string | null> {
+    async useExcalibur(context: ExcaliburContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<{ targetId: string | null; thought?: string; reasoning?: string; self_check?: string; situation_assessment?: string; action_strategy?: string; promptText?: string; retryLogs?: string[] }> {
         const validIds = new Set(context.missionCardHolderIds);
         const nameToId = new Map(Object.entries(context.playerNames).map(([id, name]) => [name, id]));
         const holdersStr = context.missionCardHolderIds
@@ -378,7 +362,7 @@ export class LLMAgent implements IAgent {
             ...getUseExcaliburPrompt(context)
         );
 
-        const result = await this.queryLLMWithValidation<{ targetId: string | null; situation_assessment: string; action_strategy: string; reasoning: string; self_check: string }>(
+        const result = await this.queryLLMWithValidation<{ targetId: string | null; situation_assessment: string; action_strategy: string; reasoning: string; self_check: string; thought?: string }>(
             prompt,
             { responseSchema: getAgentResponseSchema('useExcalibur', this.i18n.translate('setup.languageName')) },
             (parsed) => {
@@ -396,10 +380,10 @@ export class LLMAgent implements IAgent {
             'useExcalibur',
             onChunk as (chunk: string, field: string, metadata?: LLMUsageMetadata) => void
         );
-        return result.targetId;
+        return result;
     }
 
-    async useLadyOfTheLake(context: LadyContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string | null> {
+    async useLadyOfTheLake(context: LadyContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<{ targetId: string; thought?: string; reasoning?: string; self_check?: string; situation_assessment?: string; action_strategy?: string; promptText?: string; retryLogs?: string[] }> {
         const validIds = new Set(Object.keys(context.playerNames));
         const nameToId = new Map(Object.entries(context.playerNames).map(([id, name]) => [name, id]));
 
@@ -409,7 +393,7 @@ export class LLMAgent implements IAgent {
             ...getUseLadyOfTheLakePrompt(context)
         );
 
-        const result = await this.queryLLMWithValidation<{ targetId: string; situation_assessment: string; action_strategy: string; reasoning: string; self_check: string }>(
+        const result = await this.queryLLMWithValidation<{ targetId: string; situation_assessment: string; action_strategy: string; reasoning: string; self_check: string; thought?: string }>(
             prompt,
             { responseSchema: getAgentResponseSchema('useLadyOfTheLake', this.i18n.translate('setup.languageName')) },
             (parsed) => {
@@ -428,7 +412,7 @@ export class LLMAgent implements IAgent {
             'useLadyOfTheLake',
             onChunk as (chunk: string, field: string, metadata?: LLMUsageMetadata) => void
         );
-        return result.targetId;
+        return result;
     }
 
     async updateNote(context: NoteContext, onChunk?: (chunk: string, field: 'reasoning' | 'thought' | 'self_check' | 'situation_assessment' | 'action_strategy', metadata?: LLMUsageMetadata) => void): Promise<string> {
@@ -438,7 +422,7 @@ export class LLMAgent implements IAgent {
             ...getUpdateNotePrompt(context, this.myRole!, this.note, this.history, this.i18n, this.visiblePlayers, this.intelSummary)
         );
 
-        const result = await this.queryLLMWithValidation<{ newNote: string; situation_assessment: string; action_strategy: string; reasoning: string; self_check: string }>(
+        const result = await this.queryLLMWithValidation<{ newNote: string; situation_assessment: string; action_strategy: string; reasoning: string; self_check: string; thought?: string }>(
             prompt,
             { responseSchema: getAgentResponseSchema('updateNote', this.i18n.translate('setup.languageName')) },
             (parsed) => {
@@ -459,7 +443,7 @@ export class LLMAgent implements IAgent {
         return this.note;
     }
 
-    async shareGameReflection(context: GameReflectionContext, onChunk?: (chunk: string, field: 'reflection' | 'self_check' | 'reasoning' | 'situation_assessment' | 'action_strategy') => void): Promise<{ reflection: string; self_check?: string; reasoning?: string; situation_assessment?: string; action_strategy?: string; promptText?: string; retryLogs?: string[] }> {
+    async shareGameReflection(context: GameReflectionContext, onChunk?: (chunk: string, field: 'reflection' | 'self_check' | 'reasoning' | 'situation_assessment' | 'action_strategy') => void): Promise<{ reflection: string; self_check?: string; reasoning?: string; situation_assessment?: string; action_strategy?: string; thought?: string; promptText?: string; retryLogs?: string[] }> {
         // Collect Assassination Discussion as "Events This Round"
         const assassinationEvents = context.allEvents.filter(e => e.type === 'DISCUSSION' && e.phase === 'ASSASSINATION_DISCUSSION');
 
@@ -482,7 +466,7 @@ export class LLMAgent implements IAgent {
         const instruction = getShareGameReflectionPrompt(context, this.myRole!, this.name, this.id, this.note, this.i18n);
         const prompt = this.buildPrompt(baseCtx, 'shareGameReflection', instruction);
 
-        const result = await this.queryLLMWithValidation<{ reflection: string; self_check: string; reasoning: string; situation_assessment: string; action_strategy: string }>(
+        const result = await this.queryLLMWithValidation<{ reflection: string; self_check: string; reasoning: string; situation_assessment: string; action_strategy: string; thought?: string }>(
             prompt,
             {
                 responseSchema: getAgentResponseSchema('shareGameReflection', this.i18n.translate('setup.languageName'))
@@ -501,6 +485,7 @@ export class LLMAgent implements IAgent {
             reasoning: result.reasoning,
             situation_assessment: result.situation_assessment,
             action_strategy: result.action_strategy,
+            thought: result.thought,
             promptText: prompt,
             retryLogs: result.retryLogs
         };
@@ -814,7 +799,7 @@ export class LLMAgent implements IAgent {
         validate: (parsed: T) => string | null,
         actionName: string,
         onFieldChunk?: (chunk: string, field: string, metadata?: LLMUsageMetadata) => void
-    ): Promise<T & { retryLogs?: string[] }> {
+    ): Promise<T & { thought?: string, retryLogs?: string[] }> {
         const llmConfig = await this.getConfig();
         const provider = await this.getProvider(llmConfig);
         const contents: LLMContent[] = [{ role: 'user', parts: [{ text: prompt }] }];
@@ -827,6 +812,7 @@ export class LLMAgent implements IAgent {
                 // Signal UI to clear any partial output from previous failed attempt
                 if (onFieldChunk && attempt > 0) {
                     onFieldChunk('', 'speech');
+                    onFieldChunk('', 'thought');
                     onFieldChunk('', 'reasoning');
                     onFieldChunk('', 'situation_assessment');
                     onFieldChunk('', 'action_strategy');
@@ -834,7 +820,7 @@ export class LLMAgent implements IAgent {
                     onFieldChunk('', 'reflection');
                 }
 
-                const responseText = await this.streamLLM(provider, llmConfig, contents, config, onFieldChunk, retryLogs);
+                const { fullText: responseText, thoughtText } = await this.streamLLM(provider, llmConfig, contents, config, onFieldChunk, retryLogs);
 
                 // Append model's response to conversation history (internal to this query session)
                 contents.push({ role: 'model', parts: [{ text: responseText }] });
@@ -847,7 +833,7 @@ export class LLMAgent implements IAgent {
                         const anyParsed = parsed as any;
                         if (anyParsed.situation_assessment) this.lastAssessment = anyParsed.situation_assessment;
                         if (anyParsed.action_strategy) this.lastStrategy = anyParsed.action_strategy;
-                        return { ...parsed, retryLogs: retryLogs.length > 0 ? retryLogs : undefined };
+                        return { ...parsed, thought: thoughtText, retryLogs: retryLogs.length > 0 ? retryLogs : undefined };
                     }
 
                     // Invalid — append correction and retry
@@ -895,9 +881,7 @@ export class LLMAgent implements IAgent {
             const config = await this.llmManager.getConfigById(this.configId);
             if (config) return config;
         }
-        const active = this.llmManager.getDefaultConfig();
-        if (!active) throw new Error('[LLMAgent] No default config available');
-        return active;
+        throw new Error(`[LLMAgent:${this.name}] No config found for configId=${this.configId}`);
     }
 
     /** Get the LLM provider instance. */
@@ -908,12 +892,14 @@ export class LLMAgent implements IAgent {
     }
 
     /** Stream a response from the provider given a conversation. */
-    private async streamLLM(provider: LLMProvider, config: LLMConfig, contents: LLMContent[], genConfig: LLMGenerateConfig, onFieldChunk?: (chunk: string, field: string, metadata?: LLMUsageMetadata) => void, retryLogs: string[] = []): Promise<string> {
+    private async streamLLM(provider: LLMProvider, config: LLMConfig, contents: LLMContent[], genConfig: LLMGenerateConfig, onFieldChunk?: (chunk: string, field: string, metadata?: LLMUsageMetadata) => void, retryLogs: string[] = []): Promise<{ fullText: string, thoughtText: string }> {
         let fullText = '';
+        let thoughtText = '';
         let finalUsageMetadata: LLMUsageMetadata | undefined;
         let streamSucceeded = false;
 
         const llmConfig = config;
+// ... (lines 918-937 intentionally omitted for brevity in chunk, but I MUST match the target)
         // Use baseUrl as the mutex key if available, otherwise fallback to provider name
         const mutexKey = llmConfig.settings?.baseUrl || llmConfig.provider || 'default';
 
@@ -936,6 +922,7 @@ export class LLMAgent implements IAgent {
                         this.lastStrategy = '';
                     }
                     fullText = ''; // Reset on retry
+                    thoughtText = ''; // Reset on retry
                     finalUsageMetadata = undefined; // Reset usage metadata on each retry attempt
                     streamSucceeded = false;
                     const stream = provider.generateContentStream(config.settings, contents, this.systemInstruction, genConfig);
@@ -952,6 +939,7 @@ export class LLMAgent implements IAgent {
 
                         if (chunk.text) {
                             if (chunk.thought) {
+                                thoughtText += chunk.text;
                                 if (onFieldChunk) onFieldChunk(chunk.text, 'thought', chunk.usageMetadata);
                                 continue;
                             }
@@ -1065,7 +1053,7 @@ export class LLMAgent implements IAgent {
                 await this.updateTokenUsage(finalUsageMetadata);
             }
 
-            return fullText;
+            return { fullText, thoughtText };
         } finally {
             release();
         }

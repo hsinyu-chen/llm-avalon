@@ -107,6 +107,11 @@ export const zhTW = {
     timeline: {
         title: '遊戲時間軸',
         reasoning: '推論',
+        situationAssessment: '現況評估',
+        actionStrategy: '行動策略',
+        agentAnalysis: '代理分析',
+        nativeCoT: '內生思維',
+        selfCheck: '身分核實',
         round: '第 {{round}} 回合',
         waiting: '等待遊戲開始...',
         mission: '任務',

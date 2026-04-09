@@ -16,14 +16,6 @@ export class LLMManagerService {
     // List of all configs from storage
     readonly configs = this.storage.configs;
 
-    /**
-     * Get the default LLM configuration.
-     */
-    getDefaultConfig(): LLMConfig | undefined {
-        const currentConfigs = this.configs();
-        if (currentConfigs.length === 0) return undefined;
-        return currentConfigs.find(c => c.isDefault) || currentConfigs[0];
-    }
 
     /**
      * Get a provider for a specific config.

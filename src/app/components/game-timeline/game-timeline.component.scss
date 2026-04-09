@@ -267,7 +267,7 @@ h3 {
 
 .vote-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 6px;
 }
 
@@ -282,8 +282,18 @@ h3 {
 
 .voter {
     display: flex;
-    justify-content: space-between;
+    align-items: center;
+    gap: 4px;
     font-size: 0.85em;
+    flex-wrap: wrap;
+}
+
+.voter-name {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .vote-reasoning {

@@ -1,4 +1,4 @@
-import { Component, inject, signal, linkedSignal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, linkedSignal, computed, untracked, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { GameEngineService } from '../../services/game-engine.service';
 import { LLMManagerService } from '../../services/llm/llm-manager.service';
@@ -51,10 +51,14 @@ export class GameSetupComponent {
     playerAgents = linkedSignal<number, PlayerAgentConfig[]>({
         source: this.playerCount,
         computation: (count) => {
-            const defConfig = this.llmConfigs().find(c => c.isDefault) || this.llmConfigs()[0];
-            const defId = defConfig?.id || '';
+            // Use untracked() to prevent llmConfigs from being a reactive dependency.
+            // Only playerCount changes should reset the agent list.
+            // Without this, any llmConfigs signal update (e.g. async IndexedDB load)
+            // would reset the entire list, wiping out applyBulk/updateAgent changes.
+            const configs = untracked(() => this.llmConfigs());
+            const defId = configs[0]?.id || '';
 
-            const names = this.getRandomNames(count);
+            const names = untracked(() => this.getRandomNames(count));
 
             return Array.from({ length: count }, (_, i) => ({
                 id: `p${i + 1}`,
