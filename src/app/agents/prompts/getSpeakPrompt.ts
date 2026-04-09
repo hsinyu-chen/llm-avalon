@@ -101,9 +101,18 @@ ${directive}
     const leaderExplanationPrompt = isFirstLeaderSpeech
         ? `\n📢 AS THE LEADER: You just proposed this team. You MUST include a brief explanation of your reasoning for picking these specific players in your message.` : '';
 
-    // Special: Round 1 sanity check
+    // Special: Round 1 sanity check + first-round strategy
+    const isLeader = context.leaderId === id;
     const roundOneHint = (context.round === 1 && isPreVote)
-        ? `\n⚠️ ROUND 1 NOTICE: This is the very first mission. There is NO historical mission or voting data yet. Do NOT hallucinate. Use intuition.` : '';
+        ? `\n⚠️ ROUND 1 NOTICE: This is the very first mission. There is NO historical mission or voting data yet. Do NOT hallucinate. Use intuition.` +
+          (!isLeader
+              ? `\n💡 ROUND 1 STRATEGY — QUESTION NON-RANDOM PROPOSALS: Since no one has any track record yet, the leader's proposal is the FIRST piece of behavioral data in the game. Pay attention to the composition:
+  • If the leader proposed themselves + players sitting directly NEXT TO them (adjacent seats), this is a "lazy pick" pattern. It could mean the leader is Evil and picking known allies, OR it could be an innocent coincidence. Either way, you SHOULD question the leader's reasoning to extract information.
+  • Ask the leader WHY they chose those specific players. Their explanation (or lack thereof) is valuable data for everyone.
+  • A truly random or well-reasoned proposal should include players from different parts of the table, not just immediate neighbors.
+  • Don't be hostile — frame it as genuine curiosity: "Why these players specifically?" or "Can you explain your reasoning for this combination?"`
+              : '')
+        : '';
 
     // Anti-fantasy: remind LLM of the fixed team size (Only for pre-vote/discussion)
     const teamSizeHint = isPreVote
