@@ -228,6 +228,32 @@ export class LLMAgent implements IAgent {
     }
 
     async executeMission(context: MissionContext, onChunk?: (chunk: string, field: 'reasoning' | 'self_check' | 'situation_assessment' | 'action_strategy') => void): Promise<MissionAction> {
+        const teamInfo = ROLE_META[this.myRole!].team;
+        if (teamInfo === Team.Good) {
+            const autoResult: MissionAction = {
+                action: { playedMissionResult: true },
+                reasoning: "As a Good player, I have no choice but to play Success on missions. This is an automatic action.",
+                situation_assessment: "I am a Good player on a mission.",
+                action_strategy: "Play Success.",
+                self_check: "I am Good, so I must play Success."
+            };
+
+            if (onChunk) {
+                onChunk(autoResult.reasoning, 'reasoning');
+                onChunk(autoResult.situation_assessment, 'situation_assessment');
+                onChunk(autoResult.action_strategy, 'action_strategy');
+                onChunk(autoResult.self_check, 'self_check');
+            }
+
+            const resStr = this.i18n.translate('board.success');
+            this.history.push(this.i18n.translate('agent.mission.historyPlayed', {
+                round: context.round,
+                result: resStr
+            }));
+            
+            return autoResult;
+        }
+
         const prompt = this.buildPrompt(
             context,
             'executeMission',
