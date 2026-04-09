@@ -7,6 +7,7 @@ export interface GameRecordPlayer {
     role: string;
     team: string;
     modelName?: string;
+    systemInstruction?: string;
 }
 
 export interface GameRecordTokenUsage {

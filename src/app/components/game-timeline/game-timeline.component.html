@@ -4,11 +4,10 @@
     <ng-template #agentMetrics let-event="event" let-playerName="playerName" let-showThinking="showThinking">
         @if (showGodView()) {
         @if (event.promptText) {
-        <button class="debug-prompt-btn" (click)="openPromptDialog(event.promptText)" title="View Prompt">🔍</button>
+        <button class="debug-prompt-btn" (click)="openPromptDialog(playerName, event.promptText)" [title]="'timeline.viewPrompt' | translate">🔍</button>
         }
         @if (event.retryLogs && event.retryLogs.length > 0) {
-        <button class="debug-prompt-btn retry-logs-btn" (click)="openRetryLogsDialog(event.retryLogs)"
-            title="View Retry Logs">📜</button>
+        <button class="retry-log-btn" (click)="openRetryLogsDialog(event.retryLogs)" [title]="'timeline.viewRetries' | translate">🔄</button>
         }
         @if (event.status !== 'pending' && event.thought?.trim()) {
         <button class="debug-prompt-btn" (click)="openDetailDialog('timeline.reasoning', event.thought)"
@@ -196,7 +195,7 @@
                                 <span class="voter-name">{{ v.name }}</span>
                                 @if (showGodView()) {
                                 @if (v.promptText) {
-                                <button class="debug-prompt-btn" (click)="openPromptDialog(v.promptText)"
+                                <button class="debug-prompt-btn" (click)="openPromptDialog(v.name, v.promptText)"
                                     title="View Prompt">🔍</button>
                                 }
                                 @if (v.thought?.trim()) {
@@ -278,7 +277,7 @@
                             <div class="reasoning-item">
                                 <strong>{{r.name}}</strong>: <span [innerHTML]="r.reasoning | markdown"></span>
                                 @if (r.promptText) {
-                                <button class="debug-prompt-btn" (click)="openPromptDialog(r.promptText)"
+                                <button class="debug-prompt-btn" (click)="openPromptDialog(r.name, r.promptText)"
                                     title="View Prompt">🔍</button>
                                 }
                                 @if (r.self_check?.trim()) {
@@ -447,14 +446,24 @@
     </button>
     }
 
-    <dialog #promptDialog class="prompt-dialog" (click)="onDialogClick($event)" (keydown.escape)="closePromptDialog()"
-        tabindex="-1">
+    <dialog #promptDialog class="prompt-dialog" (click)="onDialogClick($event)" (keydown.escape)="closePromptDialog()">
         <div class="dialog-header">
-            <h4>System Prompt</h4>
-            <button class="close-btn" (click)="closePromptDialog()">✕</button>
+            <div class="dialog-tabs">
+                <button class="tab-btn" [class.active]="activePromptTab() === 'dynamic'" (click)="activePromptTab.set('dynamic')">
+                    {{ 'timeline.dynamicPrompt' | translate }}
+                </button>
+                <button class="tab-btn" [class.active]="activePromptTab() === 'system'" [disabled]="!selectedSystemInstruction()" (click)="activePromptTab.set('system')">
+                    {{ 'timeline.systemPrompt' | translate }}
+                </button>
+            </div>
+            <button class="close-btn" (click)="closePromptDialog()">×</button>
         </div>
-        <div class="dialog-body">
-            <pre><code>{{ selectedPromptText() }}</code></pre>
+        <div class="dialog-content">
+            @if (activePromptTab() === 'dynamic') {
+                <pre class="prompt-text">{{ selectedPromptText() }}</pre>
+            } @else {
+                <pre class="prompt-text">{{ selectedSystemInstruction() }}</pre>
+            }
         </div>
     </dialog>
 

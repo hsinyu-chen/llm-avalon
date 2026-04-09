@@ -96,6 +96,10 @@ export class LLMAgent implements IAgent {
         else this.lastStrategy += chunk;
     }
 
+    getSystemInstruction(): string {
+        return this.systemInstruction;
+    }
+
     constructor(
         public readonly id: string,
         public readonly name: string,

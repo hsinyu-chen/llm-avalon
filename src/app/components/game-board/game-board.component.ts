@@ -156,6 +156,17 @@ export class GameBoardComponent {
         return map;
     });
 
+    playerSystemInstructions = computed(() => {
+        const map: Record<string, string> = {};
+        for (const p of this.state().players) {
+            const instruction = p.agent.getSystemInstruction?.() || '';
+            if (instruction) {
+                map[p.agent.name] = instruction;
+            }
+        }
+        return map;
+    });
+
 
     resetGame() {
         this.reset.emit();

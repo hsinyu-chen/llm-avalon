@@ -24,6 +24,7 @@ interface RoundGroup {
 export class GameTimelineComponent {
     events = input.required<GameEvent[]>();
     playerRoles = input<Record<string, { role: string; team: string }>>();
+    playerSystemInstructions = input<Record<string, string>>();
     perspectiveId = input<string | null>(null);
     isGodView = input<boolean>(true);
 
@@ -44,6 +45,8 @@ export class GameTimelineComponent {
     scrollFrame = viewChild<ElementRef<HTMLDivElement>>('scrollFrame');
 
     selectedPromptText = signal<string | null>(null);
+    selectedSystemInstruction = signal<string | null>(null);
+    activePromptTab = signal<'dynamic' | 'system'>('dynamic');
     selectedDetailText = signal<string | null>(null);
     selectedDetailTitle = signal<string>('timeline.reasoning');
     selectedRetryLogs = signal<string[] | null>(null);
@@ -51,14 +54,29 @@ export class GameTimelineComponent {
     reasoningDialog = viewChild<ElementRef<HTMLDialogElement>>('reasoningDialog');
     retryLogsDialog = viewChild<ElementRef<HTMLDialogElement>>('retryLogsDialog');
 
-    openPromptDialog(text: string) {
-        this.selectedPromptText.set(text);
+    openPromptDialog(playerName: string, dynamicText: string) {
+        this.selectedPromptText.set(dynamicText);
+
+        // Try to find system prompt from input map (replays/passed data)
+        let systemText = this.playerSystemInstructions()?.[playerName];
+
+        if (!systemText) {
+            // Fallback for live game: try to get from current agent instance
+            const agent = this.gameEngine.state().players.find(p => p.agent.name === playerName)?.agent;
+            if (agent && 'getSystemInstruction' in agent) {
+                systemText = (agent as any).getSystemInstruction();
+            }
+        }
+
+        this.selectedSystemInstruction.set(systemText || null);
+        this.activePromptTab.set('dynamic');
         this.promptDialog()?.nativeElement.showModal();
     }
 
     closePromptDialog() {
         this.promptDialog()?.nativeElement.close();
         this.selectedPromptText.set(null);
+        this.selectedSystemInstruction.set(null);
     }
 
     openDetailDialog(titleKey: string, text?: string) {

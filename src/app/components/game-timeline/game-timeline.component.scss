@@ -622,15 +622,63 @@ h3 {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 12px 16px;
+        padding: 0 16px;
         border-bottom: 1px solid #30363d;
         background: #0d1117;
         border-radius: 8px 8px 0 0;
+        min-height: 48px;
 
         h4 {
             margin: 0;
             color: #58a6ff;
             font-size: 1.1em;
+            padding: 12px 0;
+        }
+
+        .dialog-tabs {
+            display: flex;
+            height: 48px;
+            gap: 4px;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: #8b949e;
+            padding: 0 16px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            position: relative;
+            height: 100%;
+            transition: all 0.2s;
+
+            &::after {
+                content: '';
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 2px;
+                background: transparent;
+                transition: background 0.2s;
+            }
+
+            &:hover:not(:disabled) {
+                color: #c9d1d9;
+            }
+
+            &.active {
+                color: #58a6ff;
+                &::after {
+                    background: #58a6ff;
+                }
+            }
+
+            &:disabled {
+                opacity: 0.3;
+                cursor: not-allowed;
+            }
         }
 
         .close-btn {
@@ -647,14 +695,13 @@ h3 {
         }
     }
 
-    .dialog-body {
+    .dialog-body, .dialog-content {
         flex: 1 1 auto;
         min-height: 0;
         padding: 16px;
         overflow-y: auto;
         scrollbar-width: thin;
         scrollbar-color: #30363d #0d1117;
-
         display: flex;
         flex-direction: column;
 
@@ -675,23 +722,19 @@ h3 {
             line-height: 1.6;
         }
 
-        pre {
-            flex: 1 1 auto;
-            min-height: 0;
+        .prompt-text {
             background: #0d1117;
             padding: 12px;
             border-radius: 6px;
             overflow-x: auto;
             border: 1px solid #30363d;
             margin: 0;
-
-            code {
-                font-family: 'Consolas', 'Courier New', monospace;
-                font-size: 0.85em;
-                color: #e6edf3;
-                white-space: pre-wrap;
-                word-wrap: break-word;
-            }
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.85em;
+            color: #e6edf3;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.5;
         }
     }
 }

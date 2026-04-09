@@ -1745,7 +1745,8 @@ export class GameEngineService {
             name: p.agent.name,
             role: p.role,
             team: p.team,
-            modelName: p.agent.modelName
+            modelName: p.agent.modelName,
+            systemInstruction: p.agent.getSystemInstruction?.()
         }));
 
         // All usage from events (single source of truth)

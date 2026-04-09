@@ -46,7 +46,11 @@
             </div>
 
             <div class="timeline-container">
-                <app-game-timeline [events]="events()" [playerRoles]="playerRoleMap()" [perspectiveId]="perspectiveId()"
+                <app-game-timeline
+                    [events]="events()"
+                    [playerRoles]="playerRoleMap()"
+                    [playerSystemInstructions]="playerSystemInstructions()"
+                    [perspectiveId]="perspectiveId()"
                     [isGodView]="!perspectiveId()">
                 </app-game-timeline>
                 @if (!isReplay()) {

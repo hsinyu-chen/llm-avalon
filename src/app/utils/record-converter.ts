@@ -12,12 +12,14 @@ export class ReplayAgent implements IAgent {
         public readonly modelName?: string,
         private personalNote: string = '',
         private tokenUsage: TokenUsage = { promptTokens: 0, completionTokens: 0, cachedTokens: 0, totalCost: 0 },
-        private noteHistory: { round: number; note: string }[] = []
+        private noteHistory: { round: number; note: string }[] = [],
+        private systemInstruction: string = ''
     ) { }
 
     getPersonalNote(): string { return this.personalNote; }
     getNoteHistory(): { round: number; note: string }[] { return this.noteHistory; }
     getTokenUsage(): TokenUsage { return this.tokenUsage; }
+    getSystemInstruction(): string { return this.systemInstruction; }
 
     // Replay agents don't perform actions
     async onNightPhase(info: NightPhaseInfo): Promise<void> { }
@@ -56,7 +58,7 @@ export function recordToGameState(record: GameRecord): GameState {
         const history = playerNoteHistories[p.id] || [];
         const latestNote = history.length > 0 ? history[history.length - 1].note : '';
         return {
-            agent: new ReplayAgent(p.id, p.name, p.modelName, latestNote, { promptTokens: 0, completionTokens: 0, cachedTokens: 0, totalCost: 0 }, history),
+            agent: new ReplayAgent(p.id, p.name, p.modelName, latestNote, { promptTokens: 0, completionTokens: 0, cachedTokens: 0, totalCost: 0 }, history, p.systemInstruction || ''),
             role: p.role as Role,
             team: p.team as Team
         };

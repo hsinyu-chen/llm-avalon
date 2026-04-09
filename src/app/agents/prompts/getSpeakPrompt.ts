@@ -145,7 +145,7 @@ ${directive}
    - Set "readyToVote": true and produce a 1-sentence "I have nothing new to add." (This will yield your speaking turn.)`
         : '';
 
-    const hammerWarning = (context.consecutiveFailedVotes === 4 && isPreVote)
+    const hammerWarning = !isPreVote ? '' : (context.consecutiveFailedVotes === 4)
         ? `\n\n🚨 **CRITICAL DANGER: THE HAMMER (VOTE ATTEMPT 5) - FORCED ACCEPTANCE**
 This is the LAST possible vote for this round. If this team is rejected, **EVIL WINS THE GAME IMMEDIATELY!**
 - **GOOD PLAYERS**: You are **FORCED** to approve this team. Do NOT waste time debating the merits of the current team members — since you MUST approve anyway, focus your speech on analyzing which players you trust for the **NEXT** mission round or discussing the identity of the **Next Leader (${nextLeaderName})**.
