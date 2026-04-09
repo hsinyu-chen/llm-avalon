@@ -56,6 +56,8 @@
 | 模型 | 玩家數 | 效能 | 硬體 | 重播 |
 |-------|---------|-------------|----------|--------|
 | Gemini 3 Flash Preview | 7 | - | Hosted API | [▶ 觀看重播](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fzh%2Fgemini-3-flash-preview.json) |
+| Gemini 2.5 Flash Lite | 7 | - | Hosted API | [▶ 觀看重播](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2Fgemini-2.5-flash-lite.json) |
+| Gemma-4-31B-it-UD (Q4_K_XL, Local,Thinking) | 7 | PP: ~229 t/s, OUT: ~8.6 t/s | Local | [▶ 觀看重播](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2Fgemma-4-31B-it-UD-Q4_K_XL_Thinking.json) |
 | Qwen3.5-35B-A3B (Q8_K_XL, Local) | 7 | PP: ~940 t/s, OUT: ~29 t/s | AMD Strix Halo 395+ 128G | [▶ 觀看重播](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fzh%2FQwen3.5-35B-A3B-UD-Q8_K_XL.json) |
 
 ### English
@@ -63,6 +65,8 @@
 | Model | Players | Performance | Hardware | Replay |
 |-------|---------|-------------|----------|--------|
 | Gemini 3 Flash Preview | 7 | - | Hosted API | [▶ Watch Replay](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2Fgemini-3-flash-preview.json) |
+| Gemini 2.5 Flash Lite | 7 | - | Hosted API | [▶ Watch Replay](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2Fgemini-2.5-flash-lite.json) |
+| Gemma-4-31B-it-UD (Q4_K_XL, Local,Thinking) | 7 | PP: ~229 t/s, OUT: ~8.6 t/s | Local | [▶ Watch Replay](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2Fgemma-4-31B-it-UD-Q4_K_XL_Thinking.json) |
 | Qwen3.5-9B-UD (Q8_K_XL, Local,Non-Thinking) | 7 | PP: ~5984 t/s, OUT: ~51 t/s | RTX 4090 | [▶ Watch Replay](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2FQwen3.5-9B-UD-Q8_K_XL.json) |
 | Qwen3.5-27B (BF16, Local,Thinking) | 7 | PP: -, OUT: ~38 t/s | RTX Pro 6000 Max-Q 96GB | [▶ Watch Replay](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2FQwen3.5-27B_Thinking.json) |
 | Qwen3.5-35B-A3B-UD (Q8_K_XL, Local,Non-Thinking) | 7 | PP: ~960 t/s, OUT: ~30 t/s | AMD Strix Halo 395+ 128G | [▶ Watch Replay](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2FQwen3.5-35B-A3B-UD-Q8_K_XL.json) |
@@ -78,6 +82,11 @@
 2.  **將紀錄檔放入** [`demo-logs/`](./demo-logs/) 下對應的語言目錄（例如 `demo-logs/en/` 或 `demo-logs/zh/`）。
 3.  **檔案名稱使用模型名稱**（例如 `your-model-name.json`）。
 4.  **同步更新** `README.zh-tw.md` 中 [Demo 重播](#demo-重播) 區塊的列表。
+5.  **獲取效能數據**：如果您使用本地模型，可以使用我們的工具腳本來計算表格所需的平均提示和生成速度：
+    ```bash
+    node scripts/calculate-log-stats.js demo-logs/en/your-model-name.json
+    ```
+
 
 ## 技術亮點
 

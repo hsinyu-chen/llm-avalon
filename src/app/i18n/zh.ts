@@ -207,7 +207,10 @@ export const zhTW = {
         thinkingNote: '💡 系統已在 Prompt 中內建引導式思考 (Guided CoT)，建議將此處的原生思考設為 Minimal 以節省費用並避免衝突。',
         customInputPrice: '輸入價格 (1M tokens/USD):',
         customCachePrice: '快取輸入價格 (1M tokens/USD):',
-        customOutputPrice: '輸出價格 (1M tokens/USD):'
+        customOutputPrice: '輸出價格 (1M tokens/USD):',
+        rateLimitTitle: '速率限制',
+        maxConcurrentRequests: '最大同時請求數',
+        minRequestInterval: '最小請求間隔 (ms)'
     },
     roles: {
         MERLIN: '梅林',

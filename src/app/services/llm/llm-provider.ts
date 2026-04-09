@@ -313,6 +313,10 @@ export interface LLMProviderConfig {
     outputPrice?: number;
     /** Additional provider-specific settings */
     additionalSettings?: Record<string, number | string | boolean | null | undefined>;
+    /** Max concurrent requests to this provider profile (default: 1) */
+    maxConcurrentRequests?: number;
+    /** Min interval between request starts in ms (default: 100) */
+    minRequestIntervalMs?: number;
 }
 /**
  * Complete LLM configuration profile stored in IndexedDB.

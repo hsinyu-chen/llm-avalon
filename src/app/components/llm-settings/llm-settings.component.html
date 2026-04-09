@@ -54,6 +54,25 @@
                 <ng-template [cdkPortalOutlet]="configPortal()" (attached)="onPortalAttached($event)"></ng-template>
                 }
             </div>
+            
+            <!-- Rate Limiting Settings -->
+            <div class="rate-limit-settings">
+                <h4>{{ 'settings.rateLimitTitle' | translate }}</h4>
+                <div class="form-grid columns-2">
+                    <div class="form-group-vertical">
+                        <label for="maxConcurrent">{{ 'settings.maxConcurrentRequests' | translate }}</label>
+                        <input id="maxConcurrent" type="number" min="1" max="20"
+                            [ngModel]="editingConfig()!.settings.maxConcurrentRequests ?? 1"
+                            (ngModelChange)="editingConfig()!.settings.maxConcurrentRequests = +$event">
+                    </div>
+                    <div class="form-group-vertical">
+                        <label for="minInterval">{{ 'settings.minRequestInterval' | translate }}</label>
+                        <input id="minInterval" type="number" min="0" max="10000" step="50"
+                            [ngModel]="editingConfig()!.settings.minRequestIntervalMs ?? 100"
+                            (ngModelChange)="editingConfig()!.settings.minRequestIntervalMs = +$event">
+                    </div>
+                </div>
+            </div>
 
             @if (costInfo()) {
             <div class="pricing-info">

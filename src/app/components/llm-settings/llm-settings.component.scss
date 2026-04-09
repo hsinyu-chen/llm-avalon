@@ -253,6 +253,60 @@
         margin-bottom: 20px;
     }
 
+    .rate-limit-settings {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 24px;
+
+        h4 {
+            margin: 0 0 16px 0;
+            color: #8b949e;
+            font-size: 0.9em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .form-grid {
+            display: grid;
+            gap: 16px;
+
+            &.columns-2 {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .form-group-vertical {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+
+            label {
+                color: #8b949e;
+                font-size: 0.85em;
+                font-weight: 500;
+            }
+
+            input {
+                width: 100%;
+                background: #0d1117;
+                border: 1px solid #30363d;
+                border-radius: 6px;
+                padding: 10px;
+                color: white;
+                font-size: 0.95em;
+                transition: border-color 0.2s;
+
+                &:focus {
+                    border-color: #58a6ff;
+                    outline: none;
+                }
+            }
+        }
+    }
+
     .pricing-info {
         margin-top: 20px;
         margin-bottom: 20px;

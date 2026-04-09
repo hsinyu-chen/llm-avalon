@@ -34,7 +34,44 @@ const MAX_RETRIES = 2;
 const MAX_API_RETRIES = 3;
 const BASE_DELAY_MS = 2000;
 
-const streamQueues: Record<string, Promise<void>> = {};
+class ProviderSemaphore {
+    private queue: (() => void)[] = [];
+    private active = 0;
+    private lastStartTime = 0;
+
+    constructor(
+        public maxConcurrency: number,
+        public minIntervalMs: number
+    ) { }
+
+    async acquire(): Promise<() => void> {
+        if (this.active >= this.maxConcurrency) {
+            await new Promise<void>(resolve => this.queue.push(resolve));
+        }
+
+        const now = Date.now();
+        const elapsed = now - this.lastStartTime;
+        if (elapsed < this.minIntervalMs) {
+            await new Promise(r => setTimeout(r, this.minIntervalMs - elapsed));
+        }
+
+        this.active++;
+        this.lastStartTime = Date.now();
+
+        let released = false;
+        return () => {
+            if (released) return;
+            released = true;
+            this.active--;
+            if (this.queue.length > 0) {
+                const next = this.queue.shift()!;
+                next();
+            }
+        };
+    }
+}
+
+const semaphores: Record<string, ProviderSemaphore> = {};
 
 /**
  * LLMAgent - An AI agent powered by a Large Language Model.
@@ -927,20 +964,21 @@ export class LLMAgent implements IAgent {
         let streamSucceeded = false;
 
         const llmConfig = config;
-// ... (lines 918-937 intentionally omitted for brevity in chunk, but I MUST match the target)
         // Use baseUrl as the mutex key if available, otherwise fallback to provider name
         const mutexKey = llmConfig.settings?.baseUrl || llmConfig.provider || 'default';
+        const maxConcurrentRequests = llmConfig.settings?.maxConcurrentRequests ?? 1;
+        const minRequestIntervalMs = llmConfig.settings?.minRequestIntervalMs ?? 100;
 
-        if (!streamQueues[mutexKey]) {
-            streamQueues[mutexKey] = Promise.resolve();
+        if (!semaphores[mutexKey]) {
+            semaphores[mutexKey] = new ProviderSemaphore(maxConcurrentRequests, minRequestIntervalMs);
+        } else {
+            // Dynamically upgrade limits if multiple profiles share the same endpoint
+            const sem = semaphores[mutexKey];
+            sem.maxConcurrency = Math.max(sem.maxConcurrency, maxConcurrentRequests);
+            sem.minIntervalMs = Math.min(sem.minIntervalMs, minRequestIntervalMs);
         }
 
-        let release!: () => void;
-        const lock = new Promise<void>(resolve => release = resolve);
-        const previousLock = streamQueues[mutexKey];
-        streamQueues[mutexKey] = previousLock.then(() => lock, () => lock);
-
-        await previousLock;
+        const release = await semaphores[mutexKey].acquire();
 
         try {
             for (let attempt = 0; attempt <= MAX_API_RETRIES; attempt++) {

@@ -205,7 +205,10 @@ export const en = {
         thinkingNote: '💡 System uses guided CoT in prompts. Recommended to set native thinking to Minimal to save costs and avoid logic conflicts.',
         customInputPrice: 'Input Price (1M tokens/USD):',
         customCachePrice: 'Cache Input Price (1M tokens/USD):',
-        customOutputPrice: 'Output Price (1M tokens/USD):'
+        customOutputPrice: 'Output Price (1M tokens/USD):',
+        rateLimitTitle: 'Rate Limiting',
+        maxConcurrentRequests: 'Max Concurrent Requests',
+        minRequestInterval: 'Min Request Interval (ms)'
     },
     roles: {
         MERLIN: 'Merlin',

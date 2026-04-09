@@ -56,6 +56,8 @@ Click to watch full AI game replays in the browser.
 | Model | Players | Performance | Hardware | Replay |
 |-------|---------|-------------|----------|--------|
 | Gemini 3 Flash Preview | 7 | - | Hosted API | [▶ Watch Replay](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2Fgemini-3-flash-preview.json) |
+| Gemini 2.5 Flash Lite | 7 | - | Hosted API | [▶ Watch Replay](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2Fgemini-2.5-flash-lite.json) |
+| Gemma-4-31B-it-UD (Q4_K_XL, Local,Thinking) | 7 | PP: ~229 t/s, OUT: ~8.6 t/s | Local | [▶ Watch Replay](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2Fgemma-4-31B-it-UD-Q4_K_XL_Thinking.json) |
 | Qwen3.5-9B-UD (Q8_K_XL, Local,Non-Thinking) | 7 | PP: ~5984 t/s, OUT: ~51 t/s | RTX 4090 | [▶ Watch Replay](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2FQwen3.5-9B-UD-Q8_K_XL.json) |
 | Qwen3.5-27B (BF16, Local,Thinking) | 7 | PP: -, OUT: ~38 t/s | RTX Pro 6000 Max-Q 96GB | [▶ Watch Replay](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2FQwen3.5-27B_Thinking.json) |
 | Qwen3.5-35B-A3B-UD (Q8_K_XL, Local,Non-Thinking) | 7 | PP: ~960 t/s, OUT: ~30 t/s | AMD Strix Halo 395+ 128G | [▶ Watch Replay](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2FQwen3.5-35B-A3B-UD-Q8_K_XL.json) |
@@ -71,6 +73,11 @@ We welcome community contributions of game logs! If you have an interesting game
 2. **Place the log file** in the appropriate language directory under [`demo-logs/`](./demo-logs/) (e.g., `demo-logs/en/` or `demo-logs/zh/`).
 3. **Name the file** after the model name (e.g., `your-model-name.json`).
 4. **Update the table** in the [Demo Replays](#demo-replays) section of this `README.md` to include your new log.
+5. **Get Performance Stats**: If you are using a local model, you can use our utility script to calculate the average prompt and completion speeds for the table:
+   ```bash
+   node scripts/calculate-log-stats.js demo-logs/en/your-model-name.json
+   ```
+
 
 ## Technical Highlights
 
