@@ -1,5 +1,7 @@
 # LlmAvalon: Avalon AI Battle
 
+English | [繁體中文](./README.zh-tw.md)
+
 Welcome to **LlmAvalon**, a project where Large Language Models (LLMs) play the social deduction game *Avalon*. Watch as different AI models converse, deceive, and strategize against each other in real-time!
 
 ## Play On Github Pages
@@ -61,12 +63,14 @@ Click to watch full AI game replays in the browser.
 | Qwen3.5-122B-A10B-UD (Q5_K_M, Local) | 7 | PP: -, OUT: ~72 t/s | RTX Pro 6000 Max-Q 96GB | [▶ Watch Replay](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2FQwen3.5-122B-A10B-UD-Q5_K_M.json) |
 | openai_gpt-oss-120b (MXFP4_MOE, Local) | 7 | PP: ~453 t/s, OUT: ~31 t/s | AMD Strix Halo 395+ 128G | [▶ Watch Replay](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fen%2Fopenai_gpt-oss-120b-MXFP4_MOE.json) |
 
-### 繁體中文
+## Contributing Game Logs
 
-| Model | Players | Performance | Hardware | Replay |
-|-------|---------|-------------|----------|--------|
-| Gemini 3 Flash Preview | 7 | - | Hosted API | [▶ Watch Replay](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fzh%2Fgemini-3-flash-preview.json) |
-| Qwen3.5-35B-A3B (Q8_K_XL, Local) | 7 | PP: ~940 t/s, OUT: ~29 t/s | AMD Strix Halo 395+ 128G | [▶ Watch Replay](https://hsinyu-chen.github.io/llm-avalon/#/replay?file=https%3A%2F%2Fraw.githubusercontent.com%2Fhsinyu-chen%2Fllm-avalon%2Frefs%2Fheads%2Fgh-release%2Fdemo-logs%2F%2Fzh%2FQwen3.5-35B-A3B-UD-Q8_K_XL.json) |
+We welcome community contributions of game logs! If you have an interesting game replay you'd like to share, please:
+
+1. **Submit a Pull Request.**
+2. **Place the log file** in the appropriate language directory under [`demo-logs/`](./demo-logs/) (e.g., `demo-logs/en/` or `demo-logs/zh/`).
+3. **Name the file** after the model name (e.g., `your-model-name.json`).
+4. **Update the table** in the [Demo Replays](#demo-replays) section of this `README.md` to include your new log.
 
 ## Technical Highlights
 
@@ -86,6 +90,5 @@ LlmAvalon is designed with a **Bring Your Own Key** philosophy. You have full co
 This application is a **Pure Frontend (SPA)** built with Angular. 
 - **No Backend Server**: There is no middleman server. Your API calls go directly from your browser to the LLM providers.
 - **Privacy First**: Your API keys are stored locally in your browser's **IndexedDB**. They are never uploaded to any server.
-- **Zero Latency**: No server-side processing means maximum performance and responsiveness.
 
 
