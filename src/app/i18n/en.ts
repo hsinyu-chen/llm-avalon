@@ -267,12 +267,12 @@ export const en = {
             selfCheck: 'I am {{name}} ({{id}}). [{{reflection}}]'
         },
         matchPoint: {
-            both2: '\n🚨🚨🚨 [CRITICAL MATCH POINT] BOTH SIDES HAVE 2 WINS! FINAL DECISIVE ROUND! 🚨🚨🚨\n',
-            good2: '\n🚨🚨🚨 [CRITICAL MATCH POINT] GOOD HAS 2 WINS! GOOD FACTION IS ABOUT TO WIN! 🚨🚨🚨\n',
-            evil2: '\n🚨🚨🚨 [CRITICAL MATCH POINT] EVIL HAS 2 WINS! EVIL FACTION IS ABOUT TO WIN! 🚨🚨🚨\n'
+            both2: '\n🚨 [Match Point] Both sides have 2 mission wins. This is the final decisive mission. (Note: This refers to Mission Progress, NOT the Voting Track)\n',
+            good2: '\n🚨 [Match Point] Good has 2 mission wins. Good faction is about to win the game. (Note: This refers to Mission Progress, NOT the Voting Track)\n',
+            evil2: '\n🚨 [Match Point] Evil has 2 mission wins. Evil faction is about to win the game. (Note: This refers to Mission Progress, NOT the Voting Track)\n'
         },
         ruleOverride: {
-            round4TwoFails: '\n🚨🚨🚨 [RULE OVERRIDE] ROUND 4 REQUIRES TWO (2) FAIL CARDS TO FAIL THE MISSION! ONE FAIL CARD WILL RESULT IN A MISSION SUCCESS! 🚨🚨🚨\n'
+            round4TwoFails: '\n🚨 [Rule Override] Round 4 requires two (2) fail cards to fail the mission. One fail card will result in a mission success.\n'
         },
         signal: {
             receiver: '> *(Private Note: you found {{sender}} pass you a **{{signal}}** signal)*',

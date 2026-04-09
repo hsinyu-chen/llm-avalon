@@ -269,12 +269,12 @@ export const zhTW = {
             selfCheck: '我是 {{name}} ({{id}})。[{{reflection}}]'
         },
         matchPoint: {
-            both2: '\n🚨🚨🚨 [關鍵賽點] 雙方皆有 2 勝！最後決勝局！ 🚨🚨🚨\n',
-            good2: '\n🚨🚨🚨 [關鍵賽點] 正義陣營已有 2 勝！正義陣營即將獲勝！ 🚨🚨🚨\n',
-            evil2: '\n🚨🚨🚨 [關鍵賽點] 邪惡陣營已有 2 勝！邪惡陣營即將獲勝！ 🚨🚨🚨\n'
+            both2: '\n🚨 [關鍵賽點] 雙方皆有 2 次任務勝利。這是最後的決勝任務局。(注意：此為任務進度 (Mission Progress)，非投票進度 (Voting Track))\n',
+            good2: '\n🚨 [關鍵賽點] 正義陣營已有 2 次任務勝利。正義陣營即將贏得遊戲。(注意：此為任務進度 (Mission Progress)，非投票進度 (Voting Track))\n',
+            evil2: '\n🚨 [關鍵賽點] 邪惡陣營已有 2 次任務勝利。邪惡陣營即將贏得遊戲。(注意：此為任務進度 (Mission Progress)，非投票進度 (Voting Track))\n'
         },
         ruleOverride: {
-            round4TwoFails: '\n🚨🚨🚨 [規則異動] 第 4 回合需要兩張（2）失敗牌才會導致任務失敗！只有一張失敗牌時任務仍會成功！ 🚨🚨🚨\n'
+            round4TwoFails: '\n🚨 [規則異動] 第 4 回合需要兩張（2）失敗牌才會導致任務失敗。只有一張失敗牌時任務仍會成功。\n'
         },
         signal: {
             receiver: '> *(私密筆記：你發現 {{sender}} 對你打了個「{{signal}}」暗號)*',
