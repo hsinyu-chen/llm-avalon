@@ -41,7 +41,8 @@ export class LLMSettingsComponent {
 
     // Editing state
     editingConfig = signal<LLMConfig | null>(null);
-
+    private costTrigger = signal(0);
+    
     // Dynamic Portal for Provider-specific settings
     configPortal = computed(() => {
         const config = this.editingConfig();
@@ -66,6 +67,7 @@ export class LLMSettingsComponent {
     });
 
     costInfo = computed(() => {
+        this.costTrigger();
         const config = this.editingConfig();
         if (!config) return null;
 
@@ -153,11 +155,7 @@ export class LLMSettingsComponent {
         const instance = ref.instance;
         if (instance.configChanged) {
             instance.configChanged.subscribe(() => {
-                const current = this.editingConfig();
-                if (current) {
-                    // Trigger signal refresh to re-run computed costInfo
-                    this.editingConfig.set({ ...current });
-                }
+                this.costTrigger.update(v => v + 1);
             });
         }
     }
